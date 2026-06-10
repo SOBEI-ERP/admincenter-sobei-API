@@ -38,7 +38,7 @@ class DenunciaAdminServiceTest {
 
     @Test
     void testAtualizarDenunciaFecharSemRelatorioThrowsException() {
-        Denuncia denuncia = Denuncia.builder().id(1).estado(StatusDenuncia.ABERTA).build();
+        Denuncia denuncia = Denuncia.builder().id(1).estado(StatusDenuncia.NA_FILA).build();
         when(denunciaRepository.findById(1)).thenReturn(Optional.of(denuncia));
 
         AtualizarDenunciaRequest request = new AtualizarDenunciaRequest();
@@ -52,7 +52,7 @@ class DenunciaAdminServiceTest {
 
     @Test
     void testAtualizarDenunciaSucesso() {
-        Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.ABERTA).build();
+        Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.NA_FILA).build();
         when(denunciaRepository.findById(1)).thenReturn(Optional.of(denuncia));
 
         AtualizarDenunciaRequest request = new AtualizarDenunciaRequest();

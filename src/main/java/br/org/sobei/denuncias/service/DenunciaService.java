@@ -43,7 +43,7 @@ public class DenunciaService {
     public CriarDenunciaResponse criarDenuncia(CriarDenunciaRequest request) {
         String protocolo = protocoloService.gerarProtocolo();
 
-        // Constrói a entidade da denúncia, definindo estado padrão inicial como ABERTA
+        // Constrói a entidade da denúncia, definindo estado padrão inicial como NA_FILA
         Denuncia denuncia = Denuncia.builder()
                 .protocolo(protocolo)
                 .tipo(request.getTipo())
@@ -51,7 +51,7 @@ public class DenunciaService {
                 .descricao(request.getDescricao())
                 .envolvidos(request.getEnvolvidos())
                 .testemunhas(request.getTestemunhas())
-                .estado(StatusDenuncia.ABERTA)
+                .estado(StatusDenuncia.NA_FILA)
                 .build();
 
         // Se a denúncia não for anônima, extrai e vincula os dados de identificação

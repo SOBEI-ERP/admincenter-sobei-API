@@ -1,6 +1,6 @@
 -- CRIAÇÃO DOS ENUMS
 CREATE TYPE tipo_denuncia AS ENUM ('anonima', 'identificada');
-CREATE TYPE estado_denuncia AS ENUM ('aberta', 'em_andamento', 'fechada', 'arquivada', 'reaberta');
+CREATE TYPE estado_denuncia AS ENUM ('na_fila', 'em_andamento', 'fechada', 'arquivada');
 CREATE TYPE tipo_conclusao AS ENUM ('final', 'arquivamento');
 
 -- Tabela de Administradores
@@ -20,7 +20,7 @@ CREATE TABLE denuncias (
     descricao TEXT NOT NULL,
     envolvidos TEXT,
     testemunhas TEXT,
-    estado estado_denuncia NOT NULL DEFAULT 'aberta',
+    estado estado_denuncia NOT NULL DEFAULT 'na_fila',
     data_abertura TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     ultima_alteracao TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

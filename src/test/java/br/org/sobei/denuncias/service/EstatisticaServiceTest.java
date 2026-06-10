@@ -45,7 +45,7 @@ class EstatisticaServiceTest {
         Denuncia d1 = Denuncia.builder()
                 .unidade("Leblon")
                 .tipo(TipoDenuncia.ANONIMA)
-                .estado(StatusDenuncia.ABERTA)
+                .estado(StatusDenuncia.NA_FILA)
                 .build();
         Denuncia d2 = Denuncia.builder()
                 .unidade("Leblon")
@@ -64,6 +64,6 @@ class EstatisticaServiceTest {
         assertEquals(1L, response.getDistribuicao().getTipos().stream()
                 .filter(t -> t.getName().equals("ANONIMA")).findFirst().get().getValue());
         assertEquals(1L, response.getDistribuicao().getStatus().stream()
-                .filter(s -> s.getName().equals("ABERTA")).findFirst().get().getValue());
+                .filter(s -> s.getName().equals("NA_FILA")).findFirst().get().getValue());
     }
 }

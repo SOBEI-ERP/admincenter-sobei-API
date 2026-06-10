@@ -27,7 +27,7 @@ public class DenunciaAdminController {
     @Operation(summary = "Listar denúncias", description = "Traz todas as denúncias ou as filtra de acordo com os query params fornecidos.")
     @GetMapping
     public ResponseEntity<List<DenunciaAdminResponse>> listarDenuncias(
-            @Parameter(description = "Filtrar por Status (ex: ABERTA, FECHADA)") @RequestParam(required = false) String status,
+            @Parameter(description = "Filtrar por Status (ex: NA_FILA, EM_ANDAMENTO, FECHADA, ARQUIVADA)") @RequestParam(required = false) String status,
             @Parameter(description = "Filtrar por Tipo (ex: ANONIMA, IDENTIFICADA)") @RequestParam(required = false) String tipo,
             @Parameter(description = "Filtrar por Unidade") @RequestParam(required = false) String unidade,
             @Parameter(description = "Ordem de visualização (ex: recentes, antigas)") @RequestParam(required = false) String ordem
