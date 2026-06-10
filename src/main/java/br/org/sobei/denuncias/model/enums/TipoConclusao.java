@@ -5,18 +5,18 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum TipoDenuncia {
-    ANONIMA("anonima"),
-    IDENTIFICADA("identificada");
+public enum TipoConclusao {
+    FINAL("final"),
+    ARQUIVAMENTO("arquivamento");
 
     private final String value;
 
-    public static TipoDenuncia fromValue(String value) {
-        for (TipoDenuncia t : values()) {
+    public static TipoConclusao fromValue(String value) {
+        for (TipoConclusao t : values()) {
             if (t.value.equalsIgnoreCase(value)) {
                 return t;
             }
         }
-        throw new IllegalArgumentException("Tipo de denúncia desconhecido: " + value);
+        throw new IllegalArgumentException("Tipo de conclusão desconhecido: " + value);
     }
 }
