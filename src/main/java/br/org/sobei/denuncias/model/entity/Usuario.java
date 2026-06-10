@@ -2,7 +2,9 @@ package br.org.sobei.denuncias.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.Instant;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "administradores")
@@ -20,9 +22,10 @@ public class Usuario {
     @Column(nullable = false, unique = true, length = 100)
     private String usuario;
 
-    @Column(name = "senha_hash", nullable = false, length = 255)
+    @Column(name = "senha_hash", nullable = false)
     private String senhaHash;
 
-    @Column(name = "data_criacao", insertable = false, updatable = false)
-    private Instant dataCriacao;
+    @CreationTimestamp
+    @Column(name = "data_criacao", updatable = false)
+    private LocalDateTime dataCriacao;
 }

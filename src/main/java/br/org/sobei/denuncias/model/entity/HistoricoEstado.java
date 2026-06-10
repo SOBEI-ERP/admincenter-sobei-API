@@ -3,7 +3,9 @@ package br.org.sobei.denuncias.model.entity;
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.Instant;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "historico_estados")
@@ -18,7 +20,7 @@ public class HistoricoEstado {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "denuncia_id", nullable = false)
     private Denuncia denuncia;
 
@@ -30,8 +32,9 @@ public class HistoricoEstado {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "admin_id")
-    private Usuario administrador;
+    private Usuario admin;
 
-    @Column(name = "data_alteracao", insertable = false, updatable = false)
-    private Instant dataAlteracao;
+    @CreationTimestamp
+    @Column(name = "data_alteracao", updatable = false)
+    private LocalDateTime dataAlteracao;
 }

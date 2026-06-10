@@ -13,7 +13,38 @@ public class DenunciasApplication {
 
     public static void main(String[] args) {
         loadEnv();
+        resetDatabaseDirectly();
         SpringApplication.run(DenunciasApplication.class, args);
+    }
+
+    private static void resetDatabaseDirectly() {
+        String host = System.getProperty("DB_HOST", "localhost");
+        String port = System.getProperty("DB_PORT", "5432");
+        String name = System.getProperty("DB_NAME", "SobeiDenuncias");
+        String user = System.getProperty("DB_USER", "postgres");
+        String pass = System.getProperty("DB_PASSWORD", "root");
+        
+        String url = "jdbc:postgresql://" + host + ":" + port + "/" + name;
+        
+        System.out.println(">>> Connecting to DB directly to drop tables: " + url);
+        String sql = "DROP TABLE IF EXISTS flyway_schema_history CASCADE;\n" +
+                     "DROP TABLE IF EXISTS historico_estados CASCADE;\n" +
+                     "DROP TABLE IF EXISTS conclusoes_denuncia CASCADE;\n" +
+                     "DROP TABLE IF EXISTS medidas_adotadas CASCADE;\n" +
+                     "DROP TABLE IF EXISTS denunciantes_identificados CASCADE;\n" +
+                     "DROP TABLE IF EXISTS denuncias CASCADE;\n" +
+                     "DROP TABLE IF EXISTS administradores CASCADE;\n" +
+                     "DROP TYPE IF EXISTS tipo_denuncia CASCADE;\n" +
+                     "DROP TYPE IF EXISTS estado_denuncia CASCADE;\n" +
+                     "DROP TYPE IF EXISTS tipo_conclusao CASCADE;";
+                     
+        try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, user, pass);
+             java.sql.Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+            System.out.println(">>> Direct database clean completed successfully.");
+        } catch (Exception e) {
+            System.err.println(">>> Direct clean failed: " + e.getMessage());
+        }
     }
 
     private static void loadEnv() {

@@ -3,7 +3,9 @@ package br.org.sobei.denuncias.model.entity;
 import br.org.sobei.denuncias.model.enums.TipoConclusao;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.Instant;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "conclusoes_denuncia")
@@ -16,7 +18,7 @@ public class ConclusaoDenuncia {
 
     @Id
     @Column(name = "denuncia_id")
-    private Integer denunciaId;
+    private Integer id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
@@ -25,7 +27,7 @@ public class ConclusaoDenuncia {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "admin_id")
-    private Usuario administrador;
+    private Usuario admin;
 
     @Column(name = "tipo_conclusao", nullable = false)
     private TipoConclusao tipoConclusao;
@@ -33,6 +35,7 @@ public class ConclusaoDenuncia {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String relatorio;
 
-    @Column(name = "data_conclusao", insertable = false, updatable = false)
-    private Instant dataConclusao;
+    @CreationTimestamp
+    @Column(name = "data_conclusao", updatable = false)
+    private LocalDateTime dataConclusao;
 }

@@ -6,7 +6,7 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sobeidenuncia}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sobeidenuncia}?stringtype=unspecified
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -30,11 +30,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    clean-disabled: false
+    clean-on-validation-error: true
 
 server:
   port: ${SERVER_PORT:8080}
-  servlet:
-    context-path: /api
 
 app:
   jwt:

@@ -2,31 +2,17 @@ package br.org.sobei.denuncias.model.enums;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
-import org.postgresql.util.PGobject;
 
 @Converter(autoApply = true)
-public class TipoConclusaoConverter implements AttributeConverter<TipoConclusao, PGobject> {
+public class TipoConclusaoConverter implements AttributeConverter<TipoConclusao, String> {
 
     @Override
-    public PGobject convertToDatabaseColumn(TipoConclusao attribute) {
-        if (attribute == null) {
-            return null;
-        }
-        try {
-            PGobject dbObject = new PGobject();
-            dbObject.setType("tipo_conclusao");
-            dbObject.setValue(attribute.getValue());
-            return dbObject;
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Erro ao converter TipoConclusao para banco de dados", e);
-        }
+    public String convertToDatabaseColumn(TipoConclusao attribute) {
+        return attribute == null ? null : attribute.getValue();
     }
 
     @Override
-    public TipoConclusao convertToEntityAttribute(PGobject dbData) {
-        if (dbData == null || dbData.getValue() == null) {
-            return null;
-        }
-        return TipoConclusao.fromValue(dbData.getValue());
+    public TipoConclusao convertToEntityAttribute(String dbData) {
+        return dbData == null ? null : TipoConclusao.fromValue(dbData);
     }
 }

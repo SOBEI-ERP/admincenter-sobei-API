@@ -14,7 +14,7 @@ public class DenuncianteIdentificado {
 
     @Id
     @Column(name = "denuncia_id")
-    private Integer denunciaId;
+    private Integer id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId

@@ -2,11 +2,12 @@ package br.org.sobei.denuncias.model.entity;
 
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
-import br.org.sobei.denuncias.model.enums.Unidade;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.Instant;
-import java.util.List;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "denuncias")
@@ -28,7 +29,7 @@ public class Denuncia {
     private TipoDenuncia tipo;
 
     @Column(nullable = false, length = 100)
-    private Unidade unidade;
+    private String unidade;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descricao;
@@ -39,25 +40,25 @@ public class Denuncia {
     @Column(columnDefinition = "TEXT")
     private String testemunhas;
 
+    @Builder.Default
     @Column(nullable = false)
-    private StatusDenuncia estado;
+    private StatusDenuncia estado = StatusDenuncia.ABERTA;
 
-    @Column(name = "data_abertura", insertable = false, updatable = false)
-    private Instant dataAbertura;
+    @CreationTimestamp
+    @Column(name = "data_abertura", updatable = false)
+    private LocalDateTime dataAbertura;
 
-    @Column(name = "ultima_alteracao", insertable = false, updatable = false)
-    private Instant ultimaAlteracao;
+    @UpdateTimestamp
+    @Column(name = "ultima_alteracao")
+    private LocalDateTime ultimaAlteracao;
 
-    // Relationships
     @OneToOne(mappedBy = "denuncia", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private DenuncianteIdentificado denunciante;
 
     @OneToOne(mappedBy = "denuncia", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ConclusaoDenuncia conclusao;
 
+    @Builder.Default
     @OneToMany(mappedBy = "denuncia", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<MedidaAdotada> medidasAdotadas;
-
-    @OneToMany(mappedBy = "denuncia", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<HistoricoEstado> historicoEstados;
+    private java.util.List<HistoricoEstado> historicos = new java.util.ArrayList<>();
 }

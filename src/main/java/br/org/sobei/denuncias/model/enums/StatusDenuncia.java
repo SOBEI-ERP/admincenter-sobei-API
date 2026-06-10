@@ -1,10 +1,11 @@
 package br.org.sobei.denuncias.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import java.util.stream.Stream;
 
 @Getter
-@RequiredArgsConstructor
 public enum StatusDenuncia {
     ABERTA("aberta"),
     EM_ANDAMENTO("em_andamento"),
@@ -14,12 +15,20 @@ public enum StatusDenuncia {
 
     private final String value;
 
+    StatusDenuncia(String value) {
+        this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+        return value;
+    }
+
+    @JsonCreator
     public static StatusDenuncia fromValue(String value) {
-        for (StatusDenuncia s : values()) {
-            if (s.value.equalsIgnoreCase(value)) {
-                return s;
-            }
-        }
-        throw new IllegalArgumentException("Status de denúncia desconhecido: " + value);
+        return Stream.of(StatusDenuncia.values())
+                .filter(s -> s.getValue().equalsIgnoreCase(value))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Status invalido: " + value));
     }
 }
