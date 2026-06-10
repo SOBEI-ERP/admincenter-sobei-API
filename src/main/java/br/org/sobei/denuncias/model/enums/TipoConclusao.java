@@ -6,13 +6,13 @@ import lombok.Getter;
 import java.util.stream.Stream;
 
 @Getter
-public enum TipoDenuncia {
-    ANONIMA("anonima"),
-    IDENTIFICADA("identificada");
+public enum TipoConclusao {
+    FINAL("final"),
+    ARQUIVAMENTO("arquivamento");
 
     private final String value;
 
-    TipoDenuncia(String value) {
+    TipoConclusao(String value) {
         this.value = value;
     }
 
@@ -22,10 +22,10 @@ public enum TipoDenuncia {
     }
 
     @JsonCreator
-    public static TipoDenuncia fromValue(String value) {
-        return Stream.of(TipoDenuncia.values())
+    public static TipoConclusao fromValue(String value) {
+        return Stream.of(TipoConclusao.values())
                 .filter(t -> t.getValue().equalsIgnoreCase(value))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Tipo de denuncia invalido: " + value));
+                .orElseThrow(() -> new IllegalArgumentException("Tipo de conclusao invalido: " + value));
     }
 }
