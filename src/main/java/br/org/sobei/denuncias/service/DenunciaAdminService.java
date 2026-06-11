@@ -1,8 +1,10 @@
 package br.org.sobei.denuncias.service;
 
 import br.org.sobei.denuncias.dto.request.AtualizarDenunciaRequest;
+import br.org.sobei.denuncias.dto.request.MedidaAdotadaRequest;
 import br.org.sobei.denuncias.dto.response.DenunciaAdminResponse;
 import br.org.sobei.denuncias.dto.response.DenunciaDetalheResponse;
+import br.org.sobei.denuncias.dto.response.MedidaAdotadaResponse;
 import br.org.sobei.denuncias.model.entity.ConclusaoDenuncia;
 import br.org.sobei.denuncias.model.entity.Denuncia;
 import br.org.sobei.denuncias.model.entity.HistoricoEstado;
@@ -81,12 +83,16 @@ public class DenunciaAdminService {
     }
 
     @Transactional(readOnly = true)
-    public DenunciaDetalheResponse buscarDetalhes(Integer id) {
-        Denuncia d = denunciaRepository.findById(id)
+    public DenunciaDetalheResponse buscarDetalhes(String protocolo) {
+        Denuncia d = denunciaRepository.findByProtocolo(protocolo)
                 .orElseThrow(() -> new IllegalArgumentException("Denúncia não encontrada."));
 
-        List<String> medidas = medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(d.getId())
-                .stream().map(MedidaAdotada::getDescricao)
+        List<MedidaAdotadaResponse> medidas = medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(d.getId())
+                .stream().map(m -> MedidaAdotadaResponse.builder()
+                        .id(m.getId())
+                        .descricao(m.getDescricao())
+                        .dataRegistro(m.getDataRegistro())
+                        .build())
                 .collect(Collectors.toList());
 
         ConclusaoDenuncia conclusao = conclusaoDenunciaRepository.findById(d.getId()).orElse(null);
@@ -135,8 +141,8 @@ public class DenunciaAdminService {
     }
 
     @Transactional
-    public DenunciaDetalheResponse atualizarDenuncia(Integer id, AtualizarDenunciaRequest request) {
-        Denuncia d = denunciaRepository.findById(id)
+    public DenunciaDetalheResponse atualizarDenuncia(String protocolo, AtualizarDenunciaRequest request) {
+        Denuncia d = denunciaRepository.findByProtocolo(protocolo)
                 .orElseThrow(() -> new IllegalArgumentException("Denúncia não encontrada."));
 
         StatusDenuncia novoStatus = request.getStatus();
@@ -147,12 +153,36 @@ public class DenunciaAdminService {
             throw new IllegalArgumentException("Para fechar ou arquivar, o relatório de conclusão é obrigatório.");
         }
 
-        // Se adicionou medida
+        // Se enviou lista de medidas para atualizar/inserir/excluir
+        if (request.getMedidas() != null) {
+            for (MedidaAdotadaRequest mReq : request.getMedidas()) {
+                if (mReq.getId() != null) {
+                    MedidaAdotada medida = medidaAdotadaRepository.findById(mReq.getId())
+                            .orElseThrow(() -> new IllegalArgumentException("Medida não encontrada: " + mReq.getId()));
+                    if (!medida.getDenuncia().getId().equals(d.getId())) {
+                        throw new IllegalArgumentException("A medida não pertence a esta denúncia.");
+                    }
+                    if (!StringUtils.hasText(mReq.getDescricao())) {
+                        medidaAdotadaRepository.delete(medida);
+                    } else {
+                        medida.setDescricao(mReq.getDescricao());
+                        medidaAdotadaRepository.save(medida);
+                    }
+                } else if (StringUtils.hasText(mReq.getDescricao())) {
+                    MedidaAdotada medida = MedidaAdotada.builder()
+                            .denuncia(d)
+                            .descricao(mReq.getDescricao())
+                            .build();
+                    medidaAdotadaRepository.save(medida);
+                }
+            }
+        }
+
+        // Se adicionou medida via campo antigo descricaoAcao (compatibilidade)
         if (StringUtils.hasText(request.getDescricaoAcao())) {
             MedidaAdotada medida = MedidaAdotada.builder()
                     .denuncia(d)
                     .descricao(request.getDescricaoAcao())
-                    .admin(null) // Idealmente pegar do SecurityContext
                     .build();
             medidaAdotadaRepository.save(medida);
         }
@@ -182,6 +212,6 @@ public class DenunciaAdminService {
         }
 
         denunciaRepository.save(d);
-        return buscarDetalhes(d.getId());
+        return buscarDetalhes(d.getProtocolo());
     }
 }

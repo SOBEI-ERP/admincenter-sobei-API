@@ -13,16 +13,15 @@ public class DenunciasApplication {
 
     public static void main(String[] args) {
         loadEnv();
-        resetDatabaseDirectly();
         SpringApplication.run(DenunciasApplication.class, args);
     }
 
     private static void resetDatabaseDirectly() {
-        String host = System.getProperty("DB_HOST", "localhost");
-        String port = System.getProperty("DB_PORT", "5432");
-        String name = System.getProperty("DB_NAME", "SobeiDenuncias");
-        String user = System.getProperty("DB_USER", "postgres");
-        String pass = System.getProperty("DB_PASSWORD", "root");
+        String host = System.getProperty("DB_HOST");
+        String port = System.getProperty("DB_PORT");
+        String name = System.getProperty("DB_NAME");
+        String user = System.getProperty("DB_USER");
+        String pass = System.getProperty("DB_PASSWORD");
         
         String url = "jdbc:postgresql://" + host + ":" + port + "/" + name;
         

@@ -38,29 +38,29 @@ class DenunciaAdminServiceTest {
 
     @Test
     void testAtualizarDenunciaFecharSemRelatorioThrowsException() {
-        Denuncia denuncia = Denuncia.builder().id(1).estado(StatusDenuncia.NA_FILA).build();
-        when(denunciaRepository.findById(1)).thenReturn(Optional.of(denuncia));
+        Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.NA_FILA).build();
+        when(denunciaRepository.findByProtocolo("XYZ-123-456")).thenReturn(Optional.of(denuncia));
 
         AtualizarDenunciaRequest request = new AtualizarDenunciaRequest();
         request.setStatus(StatusDenuncia.FECHADA);
         request.setRelatorio(null);
 
         assertThrows(IllegalArgumentException.class, () -> {
-            denunciaAdminService.atualizarDenuncia(1, request);
+            denunciaAdminService.atualizarDenuncia("XYZ-123-456", request);
         });
     }
 
     @Test
     void testAtualizarDenunciaSucesso() {
         Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.NA_FILA).build();
-        when(denunciaRepository.findById(1)).thenReturn(Optional.of(denuncia));
+        when(denunciaRepository.findByProtocolo("XYZ-123-456")).thenReturn(Optional.of(denuncia));
 
         AtualizarDenunciaRequest request = new AtualizarDenunciaRequest();
         request.setStatus(StatusDenuncia.FECHADA);
         request.setRelatorio("Relatorio concluido com sucesso.");
         request.setTipoConclusao(TipoConclusao.FINAL);
 
-        DenunciaDetalheResponse response = denunciaAdminService.atualizarDenuncia(1, request);
+        DenunciaDetalheResponse response = denunciaAdminService.atualizarDenuncia("XYZ-123-456", request);
 
         assertNotNull(response);
         verify(conclusaoDenunciaRepository, times(1)).save(any());
