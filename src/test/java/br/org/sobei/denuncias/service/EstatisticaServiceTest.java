@@ -1,10 +1,16 @@
 package br.org.sobei.denuncias.service;
 
+import br.org.sobei.denuncias.dto.DenunciaStatsDto;
 import br.org.sobei.denuncias.dto.response.EstatisticaResponse;
 import br.org.sobei.denuncias.model.entity.Denuncia;
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
-import br.org.sobei.denuncias.repository.DenunciaRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CompoundSelection;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -23,14 +29,24 @@ import static org.mockito.Mockito.*;
 class EstatisticaServiceTest {
 
     @Mock
-    private DenunciaRepository denunciaRepository;
+    private EntityManager entityManager;
 
     @InjectMocks
     private EstatisticaService estatisticaService;
 
     @Test
     void testObterEstatisticasVazio() {
-        when(denunciaRepository.findAll(any(Specification.class))).thenReturn(Collections.emptyList());
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        CriteriaQuery<DenunciaStatsDto> query = mock(CriteriaQuery.class);
+        Root<Denuncia> root = mock(Root.class);
+        TypedQuery<DenunciaStatsDto> typedQuery = mock(TypedQuery.class);
+
+        when(entityManager.getCriteriaBuilder()).thenReturn(cb);
+        when(cb.createQuery(DenunciaStatsDto.class)).thenReturn(query);
+        when(query.from(Denuncia.class)).thenReturn(root);
+        when(cb.construct(eq(DenunciaStatsDto.class), any(), any(), any())).thenReturn(mock(CompoundSelection.class));
+        when(entityManager.createQuery(query)).thenReturn(typedQuery);
+        when(typedQuery.getResultList()).thenReturn(Collections.emptyList());
 
         EstatisticaResponse response = estatisticaService.obterEstatisticas(null, null, null, null);
 
@@ -42,18 +58,20 @@ class EstatisticaServiceTest {
 
     @Test
     void testObterEstatisticasComDados() {
-        Denuncia d1 = Denuncia.builder()
-                .unidade("Leblon")
-                .tipo(TipoDenuncia.ANONIMA)
-                .estado(StatusDenuncia.NA_FILA)
-                .build();
-        Denuncia d2 = Denuncia.builder()
-                .unidade("Leblon")
-                .tipo(TipoDenuncia.IDENTIFICADA)
-                .estado(StatusDenuncia.EM_ANDAMENTO)
-                .build();
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        CriteriaQuery<DenunciaStatsDto> query = mock(CriteriaQuery.class);
+        Root<Denuncia> root = mock(Root.class);
+        TypedQuery<DenunciaStatsDto> typedQuery = mock(TypedQuery.class);
 
-        when(denunciaRepository.findAll(any(Specification.class))).thenReturn(Arrays.asList(d1, d2));
+        when(entityManager.getCriteriaBuilder()).thenReturn(cb);
+        when(cb.createQuery(DenunciaStatsDto.class)).thenReturn(query);
+        when(query.from(Denuncia.class)).thenReturn(root);
+        when(cb.construct(eq(DenunciaStatsDto.class), any(), any(), any())).thenReturn(mock(CompoundSelection.class));
+        when(entityManager.createQuery(query)).thenReturn(typedQuery);
+
+        DenunciaStatsDto d1 = new DenunciaStatsDto("Leblon", TipoDenuncia.ANONIMA, StatusDenuncia.NA_FILA);
+        DenunciaStatsDto d2 = new DenunciaStatsDto("Leblon", TipoDenuncia.IDENTIFICADA, StatusDenuncia.EM_ANDAMENTO);
+        when(typedQuery.getResultList()).thenReturn(Arrays.asList(d1, d2));
 
         EstatisticaResponse response = estatisticaService.obterEstatisticas(null, null, null, null);
 
