@@ -25,7 +25,7 @@ public class ApplicationSecurityConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> usuarioRepository.findByUsuario(username)
-                .map(u -> new User(u.getUsuario(), u.getSenhaHash(), Collections.emptyList()))
+                .map(u -> new User(u.getUsuario(), u.getSenhaHash(), Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + u.getNivel().name().toUpperCase()))))
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
     }
 

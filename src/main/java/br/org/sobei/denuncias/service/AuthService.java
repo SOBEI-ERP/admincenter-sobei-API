@@ -30,7 +30,7 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
         String jwtToken = jwtService.generateToken(
-                new User(user.getUsuario(), user.getSenhaHash(), Collections.emptyList())
+                new User(user.getUsuario(), user.getSenhaHash(), Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getNivel().name().toUpperCase())))
         );
 
         return LoginResponse.builder()
@@ -38,6 +38,7 @@ public class AuthService {
                 .token(jwtToken)
                 .user(LoginResponse.UserInfo.builder()
                         .usuario(user.getUsuario())
+                        .nivel(user.getNivel().name())
                         .build())
                 .build();
     }
