@@ -7,11 +7,10 @@ import java.util.stream.Stream;
 
 @Getter
 public enum StatusDenuncia {
-    ABERTA("aberta"),
+    NA_FILA("na_fila"),
     EM_ANDAMENTO("em_andamento"),
     FECHADA("fechada"),
-    ARQUIVADA("arquivada"),
-    REABERTA("reaberta");
+    ARQUIVADA("arquivada");
 
     private final String value;
 

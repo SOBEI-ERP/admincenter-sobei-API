@@ -25,4 +25,6 @@ public class ConsultaProtocoloResponse {
     private String descricao;
     private String envolvidos;
     private String testemunhas;
+    private String relatorioConclusao;
+    private String tipoConclusao;
 }

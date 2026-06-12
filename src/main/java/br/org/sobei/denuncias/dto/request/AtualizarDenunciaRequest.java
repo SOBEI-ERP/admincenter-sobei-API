@@ -13,6 +13,7 @@ public class AtualizarDenunciaRequest {
     
     // Usado se for tomada alguma medida
     private String descricaoAcao;
+    private java.util.List<MedidaAdotadaRequest> medidas;
     
     // Usado se for fechar ou arquivar
     private String relatorio;

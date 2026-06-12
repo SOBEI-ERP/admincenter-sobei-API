@@ -10,6 +10,8 @@ import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
 import br.org.sobei.denuncias.repository.DenunciaRepository;
 import br.org.sobei.denuncias.repository.MedidaAdotadaRepository;
+import br.org.sobei.denuncias.repository.ConclusaoDenunciaRepository;
+import br.org.sobei.denuncias.model.entity.ConclusaoDenuncia;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class DenunciaService {
     private final DenunciaRepository denunciaRepository;
     private final ProtocoloService protocoloService;
     private final MedidaAdotadaRepository medidaAdotadaRepository;
+    private final ConclusaoDenunciaRepository conclusaoDenunciaRepository;
 
     /**
      * Cria uma nova denúncia, gerando um protocolo único no formato ABC-123-456 e salvando os
@@ -43,7 +46,7 @@ public class DenunciaService {
     public CriarDenunciaResponse criarDenuncia(CriarDenunciaRequest request) {
         String protocolo = protocoloService.gerarProtocolo();
 
-        // Constrói a entidade da denúncia, definindo estado padrão inicial como ABERTA
+        // Constrói a entidade da denúncia, definindo estado padrão inicial como NA_FILA
         Denuncia denuncia = Denuncia.builder()
                 .protocolo(protocolo)
                 .tipo(request.getTipo())
@@ -51,7 +54,7 @@ public class DenunciaService {
                 .descricao(request.getDescricao())
                 .envolvidos(request.getEnvolvidos())
                 .testemunhas(request.getTestemunhas())
-                .estado(StatusDenuncia.ABERTA)
+                .estado(StatusDenuncia.NA_FILA)
                 .build();
 
         // Se a denúncia não for anônima, extrai e vincula os dados de identificação
@@ -91,6 +94,8 @@ public class DenunciaService {
                 .stream().map(MedidaAdotada::getDescricao)
                 .collect(Collectors.toList());
 
+        ConclusaoDenuncia conclusao = conclusaoDenunciaRepository.findById(denuncia.getId()).orElse(null);
+
         return ConsultaProtocoloResponse.builder()
                 .protocolo(denuncia.getProtocolo())
                 .estado(denuncia.getEstado())
@@ -102,6 +107,8 @@ public class DenunciaService {
                 .descricao(denuncia.getDescricao())
                 .envolvidos(denuncia.getEnvolvidos())
                 .testemunhas(denuncia.getTestemunhas())
+                .relatorioConclusao(conclusao != null ? conclusao.getRelatorio() : null)
+                .tipoConclusao(conclusao != null && conclusao.getTipoConclusao() != null ? conclusao.getTipoConclusao().name() : null)
                 .build();
     }
 }

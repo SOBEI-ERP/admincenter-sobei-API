@@ -42,7 +42,7 @@ public class Denuncia {
 
     @Builder.Default
     @Column(nullable = false)
-    private StatusDenuncia estado = StatusDenuncia.ABERTA;
+    private StatusDenuncia estado = StatusDenuncia.NA_FILA;
 
     @CreationTimestamp
     @Column(name = "data_abertura", updatable = false)

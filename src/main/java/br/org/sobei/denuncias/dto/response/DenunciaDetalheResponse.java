@@ -27,7 +27,7 @@ public class DenunciaDetalheResponse {
     private String telefoneDenunciante;
     
     // Timeline e Medidas
-    private List<String> medidasAdotadas;
+    private List<MedidaAdotadaResponse> medidasAdotadas;
     private String relatorioConclusao;
     private String tipoConclusao;
     private LocalDateTime dataAbertura;

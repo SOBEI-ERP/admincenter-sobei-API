@@ -1,9 +1,14 @@
 package br.org.sobei.denuncias.service;
 
+import br.org.sobei.denuncias.dto.DenunciaStatsDto;
 import br.org.sobei.denuncias.dto.response.EstatisticaResponse;
 import br.org.sobei.denuncias.model.entity.Denuncia;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
-import br.org.sobei.denuncias.repository.DenunciaRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -19,7 +24,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EstatisticaService {
 
-    private final DenunciaRepository denunciaRepository;
+    private final EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public EstatisticaResponse obterEstatisticas(String tipo, String unidade, String dataInicio, String dataFim) {
@@ -40,11 +45,28 @@ public class EstatisticaService {
             spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("dataAbertura"), end.atTime(23, 59, 59)));
         }
 
-        List<Denuncia> todas = denunciaRepository.findAll(spec);
+        // Utiliza Criteria API para trazer apenas os campos necessários, aplicando a Specification
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<DenunciaStatsDto> query = cb.createQuery(DenunciaStatsDto.class);
+        Root<Denuncia> root = query.from(Denuncia.class);
+
+        Predicate predicate = spec.toPredicate(root, query, cb);
+        if (predicate != null) {
+            query.where(predicate);
+        }
+
+        query.select(cb.construct(
+                DenunciaStatsDto.class,
+                root.get("unidade"),
+                root.get("tipo"),
+                root.get("estado")
+        ));
+
+        List<DenunciaStatsDto> todas = entityManager.createQuery(query).getResultList();
 
         Map<String, Long> porUnidade = todas.stream()
                 .filter(d -> d.getUnidade() != null)
-                .collect(Collectors.groupingBy(Denuncia::getUnidade, Collectors.counting()));
+                .collect(Collectors.groupingBy(DenunciaStatsDto::getUnidade, Collectors.counting()));
 
         Map<String, Long> porTipo = todas.stream()
                 .collect(Collectors.groupingBy(d -> d.getTipo().name(), Collectors.counting()));
