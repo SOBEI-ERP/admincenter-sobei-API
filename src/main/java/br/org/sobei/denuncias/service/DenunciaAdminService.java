@@ -78,6 +78,7 @@ public class DenunciaAdminService {
                     .ultimaAlteracao(d.getUltimaAlteracao())
                     .dataFechamento(closedAt)
                     .dataArquivamento(archivedAt)
+                    .prioridade(d.getPrioridade())
                     .build();
         }).collect(Collectors.toList());
     }
@@ -124,7 +125,8 @@ public class DenunciaAdminService {
                 .descricao(d.getDescricao())
                 .envolvidos(d.getEnvolvidos())
                 .testemunhas(d.getTestemunhas())
-                .medidasAdotadas(medidas);
+                .medidasAdotadas(medidas)
+                .prioridade(d.getPrioridade());
 
         if (d.getDenunciante() != null) {
             builder.nomeDenunciante(d.getDenunciante().getNomeCompleto())
@@ -209,6 +211,10 @@ public class DenunciaAdminService {
                     .tipoConclusao(request.getTipoConclusao())
                     .build();
             conclusaoDenunciaRepository.save(conclusao);
+        }
+
+        if (request.getPrioridade() != null) {
+            d.setPrioridade(request.getPrioridade());
         }
 
         denunciaRepository.save(d);

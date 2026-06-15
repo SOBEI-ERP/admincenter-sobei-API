@@ -1,5 +1,6 @@
 package br.org.sobei.denuncias.dto.request;
 
+import br.org.sobei.denuncias.model.enums.PrioridadeDenuncia;
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoConclusao;
 import jakarta.validation.constraints.NotNull;
@@ -18,4 +19,7 @@ public class AtualizarDenunciaRequest {
     // Usado se for fechar ou arquivar
     private String relatorio;
     private TipoConclusao tipoConclusao;
+
+    // Prioridade da denúncia
+    private PrioridadeDenuncia prioridade;
 }
