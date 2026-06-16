@@ -35,7 +35,7 @@ public class DenunciaAdminService {
     private final ConclusaoDenunciaRepository conclusaoDenunciaRepository;
 
     @Transactional(readOnly = true)
-    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem) {
+    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridade) {
         Specification<Denuncia> spec = (root, query, cb) -> cb.conjunction();
 
         if (StringUtils.hasText(status)) {
@@ -46,6 +46,9 @@ public class DenunciaAdminService {
         }
         if (StringUtils.hasText(unidade)) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("unidade"), unidade));
+        }
+        if (StringUtils.hasText(prioridade)) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("prioridade"), br.org.sobei.denuncias.model.enums.PrioridadeDenuncia.valueOf(prioridade.toUpperCase())));
         }
 
         Sort sort = "recentes".equalsIgnoreCase(ordem) ? Sort.by("dataAbertura").descending() : Sort.by("dataAbertura").ascending();
