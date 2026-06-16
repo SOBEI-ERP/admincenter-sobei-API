@@ -7,6 +7,7 @@ import java.util.stream.Stream;
 
 @Getter
 public enum PrioridadeDenuncia {
+    NEUTRA("neutra"),
     BAIXA("baixa"),
     MEDIA("media"),
     ALTA("alta");

@@ -47,7 +47,7 @@ public class Denuncia {
 
     @Builder.Default
     @Column(nullable = false)
-    private PrioridadeDenuncia prioridade = PrioridadeDenuncia.BAIXA;
+    private PrioridadeDenuncia prioridade = PrioridadeDenuncia.NEUTRA;
 
     @CreationTimestamp
     @Column(name = "data_abertura", updatable = false)

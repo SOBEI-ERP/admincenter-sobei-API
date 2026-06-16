@@ -214,6 +214,10 @@ public class DenunciaAdminService {
         }
 
         if (request.getPrioridade() != null) {
+            if (d.getEstado() != StatusDenuncia.EM_ANDAMENTO && novoStatus != StatusDenuncia.EM_ANDAMENTO) {
+                throw new IllegalArgumentException(
+                        "A prioridade só pode ser alterada quando a denúncia está em andamento.");
+            }
             d.setPrioridade(request.getPrioridade());
         }
 
