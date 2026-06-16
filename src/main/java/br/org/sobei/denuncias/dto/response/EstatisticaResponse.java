@@ -17,6 +17,7 @@ public class EstatisticaResponse {
     public static class DistribuicaoStats {
         private List<LabelValue> tipos;
         private List<LabelValue> status;
+        private List<LabelValue> prioridades;
     }
 
     @Data

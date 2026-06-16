@@ -30,10 +30,9 @@ public class DenunciaAdminController {
             @Parameter(description = "Filtrar por Status (ex: NA_FILA, EM_ANDAMENTO, FECHADA, ARQUIVADA)") @RequestParam(required = false) String status,
             @Parameter(description = "Filtrar por Tipo (ex: ANONIMA, IDENTIFICADA)") @RequestParam(required = false) String tipo,
             @Parameter(description = "Filtrar por Unidade") @RequestParam(required = false) String unidade,
-            @Parameter(description = "Ordem de visualização (ex: recentes, antigas)") @RequestParam(required = false) String ordem,
-            @Parameter(description = "Filtrar por Prioridade (ex: baixa, media, alta, neutra)") @RequestParam(required = false) String prioridade
+            @Parameter(description = "Ordem de visualização (ex: recentes, antigas)") @RequestParam(required = false) String ordem
     ) {
-        return ResponseEntity.ok(denunciaAdminService.listarDenuncias(status, tipo, unidade, ordem, prioridade));
+        return ResponseEntity.ok(denunciaAdminService.listarDenuncias(status, tipo, unidade, ordem));
     }
 
     @Operation(summary = "Buscar detalhes de uma denúncia", description = "Traz o relatório completo da denúncia incluindo histórico e medidas tomadas.")

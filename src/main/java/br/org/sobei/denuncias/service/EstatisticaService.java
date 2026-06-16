@@ -59,7 +59,8 @@ public class EstatisticaService {
                 DenunciaStatsDto.class,
                 root.get("unidade"),
                 root.get("tipo"),
-                root.get("estado")
+                root.get("estado"),
+                root.get("prioridade")
         ));
 
         List<DenunciaStatsDto> todas = entityManager.createQuery(query).getResultList();
@@ -74,6 +75,10 @@ public class EstatisticaService {
         Map<String, Long> porStatus = todas.stream()
                 .collect(Collectors.groupingBy(d -> d.getEstado().name(), Collectors.counting()));
 
+        Map<String, Long> porPrioridade = todas.stream()
+                .filter(d -> d.getPrioridade() != null)
+                .collect(Collectors.groupingBy(d -> d.getPrioridade().name(), Collectors.counting()));
+
         var tiposList = porTipo.entrySet().stream()
                 .map(e -> EstatisticaResponse.LabelValue.builder().name(e.getKey()).value(e.getValue()).build())
                 .collect(Collectors.toList());
@@ -82,11 +87,16 @@ public class EstatisticaService {
                 .map(e -> EstatisticaResponse.LabelValue.builder().name(e.getKey()).value(e.getValue()).build())
                 .collect(Collectors.toList());
 
+        var prioridadesList = porPrioridade.entrySet().stream()
+                .map(e -> EstatisticaResponse.LabelValue.builder().name(e.getKey()).value(e.getValue()).build())
+                .collect(Collectors.toList());
+
         return EstatisticaResponse.builder()
                 .porUnidade(porUnidade)
                 .distribuicao(EstatisticaResponse.DistribuicaoStats.builder()
                         .tipos(tiposList)
                         .status(statusList)
+                        .prioridades(prioridadesList)
                         .build())
                 .build();
     }
