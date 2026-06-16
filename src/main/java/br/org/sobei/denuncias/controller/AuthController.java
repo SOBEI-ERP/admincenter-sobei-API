@@ -43,7 +43,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from("sobei_token", loginResponse.getToken())
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Strict")
+                .sameSite("None")
                 .path("/")
                 .build();
 
@@ -62,7 +62,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from("sobei_token", "")
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Strict")
+                .sameSite("None")
                 .path("/")
                 .maxAge(0)
                 .build();
