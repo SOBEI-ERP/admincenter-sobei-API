@@ -41,7 +41,7 @@ public class SecurityConfig {
                         // Libera Swagger e API Pública
                         .requestMatchers("/api/public/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Libera a rota de Login e a rota interna de erros do Spring
-                        .requestMatchers("/api/admin/auth/login", "/error").permitAll()
+                        .requestMatchers("/api/admin/auth/login", "/api/admin/auth/logout", "/error").permitAll()
                         // Bloqueia qualquer outra rota (Painel Admin)
                         .anyRequest().authenticated()
                 )

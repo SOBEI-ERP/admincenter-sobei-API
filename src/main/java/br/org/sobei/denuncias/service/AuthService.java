@@ -42,4 +42,14 @@ public class AuthService {
                         .build())
                 .build();
     }
+
+    public LoginResponse.UserInfo getAuthenticatedUser(String username) {
+        Usuario user = usuarioRepository.findByUsuario(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
+
+        return LoginResponse.UserInfo.builder()
+                .usuario(user.getUsuario())
+                .nivel(user.getNivel().name())
+                .build();
+    }
 }

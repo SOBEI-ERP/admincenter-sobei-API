@@ -2,6 +2,7 @@ package br.org.sobei.denuncias.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -29,16 +30,32 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
+        // 1. Tenta extrair o JWT do cookie httpOnly
+        String tokenFromCookie = null;
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("sobei_token".equals(cookie.getName())) {
+                    tokenFromCookie = cookie.getValue();
+                    break;
+                }
+            }
         }
 
-        jwt = authHeader.substring(7);
+        // 2. Fallback: tenta extrair do header Authorization (compatibilidade com Swagger)
+        if (tokenFromCookie != null && !tokenFromCookie.isBlank()) {
+            jwt = tokenFromCookie;
+        } else {
+            final String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            jwt = authHeader.substring(7);
+        }
+
         try {
             userEmail = jwtService.extractUsername(jwt);
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
