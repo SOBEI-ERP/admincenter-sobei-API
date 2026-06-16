@@ -35,7 +35,7 @@ public class DenunciaAdminService {
     private final ConclusaoDenunciaRepository conclusaoDenunciaRepository;
 
     @Transactional(readOnly = true)
-    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem) {
+    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridadeOrdem) {
         Specification<Denuncia> spec = (root, query, cb) -> cb.conjunction();
 
         if (StringUtils.hasText(status)) {
@@ -52,23 +52,31 @@ public class DenunciaAdminService {
 
         List<Denuncia> denuncias = denunciaRepository.findAll(spec, sort);
 
-        if ("maior_prioridade".equalsIgnoreCase(ordem)) {
+        if ("maior_prioridade".equalsIgnoreCase(prioridadeOrdem)) {
             denuncias.sort((d1, d2) -> {
                 int w1 = getPrioridadeWeight(d1.getPrioridade());
                 int w2 = getPrioridadeWeight(d2.getPrioridade());
                 if (w1 != w2) {
                     return Integer.compare(w2, w1);
                 }
-                return d2.getDataAbertura().compareTo(d1.getDataAbertura());
+                if ("antigos".equalsIgnoreCase(ordem)) {
+                    return d1.getDataAbertura().compareTo(d2.getDataAbertura());
+                } else {
+                    return d2.getDataAbertura().compareTo(d1.getDataAbertura());
+                }
             });
-        } else if ("menor_prioridade".equalsIgnoreCase(ordem)) {
+        } else if ("menor_prioridade".equalsIgnoreCase(prioridadeOrdem)) {
             denuncias.sort((d1, d2) -> {
                 int w1 = getPrioridadeWeight(d1.getPrioridade());
                 int w2 = getPrioridadeWeight(d2.getPrioridade());
                 if (w1 != w2) {
                     return Integer.compare(w1, w2);
                 }
-                return d2.getDataAbertura().compareTo(d1.getDataAbertura());
+                if ("antigos".equalsIgnoreCase(ordem)) {
+                    return d1.getDataAbertura().compareTo(d2.getDataAbertura());
+                } else {
+                    return d2.getDataAbertura().compareTo(d1.getDataAbertura());
+                }
             });
         }
 
