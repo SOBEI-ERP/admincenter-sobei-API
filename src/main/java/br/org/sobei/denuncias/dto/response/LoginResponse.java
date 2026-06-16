@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -13,6 +15,7 @@ import lombok.Setter;
 @Builder
 public class LoginResponse {
     private boolean success;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String token;
     private UserInfo user;
 
