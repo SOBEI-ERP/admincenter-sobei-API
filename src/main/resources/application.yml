@@ -30,8 +30,8 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-    clean-disabled: false
-    clean-on-validation-error: true
+    clean-disabled: true
+    clean-on-validation-error: false
 
 server:
   port: ${PORT:${SERVER_PORT:8080}}
@@ -63,6 +63,10 @@ spring:
 
   jpa:
     show-sql: true
+
+  flyway:
+    clean-disabled: false
+    clean-on-validation-error: true
 
 logging:
   level:
