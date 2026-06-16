@@ -1,5 +1,6 @@
 package br.org.sobei.denuncias.model.entity;
 
+import br.org.sobei.denuncias.model.enums.PrioridadeDenuncia;
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
 import jakarta.persistence.*;
@@ -43,6 +44,10 @@ public class Denuncia {
     @Builder.Default
     @Column(nullable = false)
     private StatusDenuncia estado = StatusDenuncia.NA_FILA;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private PrioridadeDenuncia prioridade = PrioridadeDenuncia.NEUTRA;
 
     @CreationTimestamp
     @Column(name = "data_abertura", updatable = false)

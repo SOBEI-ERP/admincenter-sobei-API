@@ -1,5 +1,6 @@
 package br.org.sobei.denuncias.dto.response;
 
+import br.org.sobei.denuncias.model.enums.PrioridadeDenuncia;
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
 import lombok.Builder;
@@ -33,4 +34,7 @@ public class DenunciaDetalheResponse {
     private LocalDateTime dataAbertura;
     private LocalDateTime dataFechamento;
     private LocalDateTime dataArquivamento;
+
+    // Prioridade da denúncia
+    private PrioridadeDenuncia prioridade;
 }
