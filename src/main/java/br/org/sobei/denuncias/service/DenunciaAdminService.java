@@ -35,7 +35,7 @@ public class DenunciaAdminService {
     private final ConclusaoDenunciaRepository conclusaoDenunciaRepository;
 
     @Transactional(readOnly = true)
-    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridade) {
+    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem) {
         Specification<Denuncia> spec = (root, query, cb) -> cb.conjunction();
 
         if (StringUtils.hasText(status)) {
@@ -47,13 +47,30 @@ public class DenunciaAdminService {
         if (StringUtils.hasText(unidade)) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("unidade"), unidade));
         }
-        if (StringUtils.hasText(prioridade)) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("prioridade"), br.org.sobei.denuncias.model.enums.PrioridadeDenuncia.valueOf(prioridade.toUpperCase())));
-        }
 
-        Sort sort = "recentes".equalsIgnoreCase(ordem) ? Sort.by("dataAbertura").descending() : Sort.by("dataAbertura").ascending();
+        Sort sort = "antigos".equalsIgnoreCase(ordem) ? Sort.by("dataAbertura").ascending() : Sort.by("dataAbertura").descending();
 
         List<Denuncia> denuncias = denunciaRepository.findAll(spec, sort);
+
+        if ("maior_prioridade".equalsIgnoreCase(ordem)) {
+            denuncias.sort((d1, d2) -> {
+                int w1 = getPrioridadeWeight(d1.getPrioridade());
+                int w2 = getPrioridadeWeight(d2.getPrioridade());
+                if (w1 != w2) {
+                    return Integer.compare(w2, w1);
+                }
+                return d2.getDataAbertura().compareTo(d1.getDataAbertura());
+            });
+        } else if ("menor_prioridade".equalsIgnoreCase(ordem)) {
+            denuncias.sort((d1, d2) -> {
+                int w1 = getPrioridadeWeight(d1.getPrioridade());
+                int w2 = getPrioridadeWeight(d2.getPrioridade());
+                if (w1 != w2) {
+                    return Integer.compare(w1, w2);
+                }
+                return d2.getDataAbertura().compareTo(d1.getDataAbertura());
+            });
+        }
 
         return denuncias.stream().map(d -> {
             java.time.LocalDateTime openedAt = d.getHistoricos().stream()
@@ -226,5 +243,15 @@ public class DenunciaAdminService {
 
         denunciaRepository.save(d);
         return buscarDetalhes(d.getProtocolo());
+    }
+
+    private int getPrioridadeWeight(br.org.sobei.denuncias.model.enums.PrioridadeDenuncia prioridade) {
+        if (prioridade == null) return 0;
+        return switch (prioridade) {
+            case ALTA -> 4;
+            case MEDIA -> 3;
+            case BAIXA -> 2;
+            case NEUTRA -> 1;
+        };
     }
 }

@@ -1,5 +1,6 @@
 package br.org.sobei.denuncias.dto;
 
+import br.org.sobei.denuncias.model.enums.PrioridadeDenuncia;
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
 import lombok.AllArgsConstructor;
@@ -17,4 +18,5 @@ public class DenunciaStatsDto {
     private String unidade;
     private TipoDenuncia tipo;
     private StatusDenuncia estado;
+    private PrioridadeDenuncia prioridade;
 }
