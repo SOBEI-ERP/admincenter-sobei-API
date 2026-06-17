@@ -48,7 +48,7 @@ public class AuthController {
                 .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        loginResponse.setToken(null);
+        // loginResponse.setToken(null); // Mantido para o frontend poder salvar no sessionStorage (guia anônima)
 
         return ResponseEntity.ok(loginResponse);
     }
