@@ -19,7 +19,6 @@ public class ConsultaProtocoloResponse {
     private StatusDenuncia estado;
     private LocalDateTime dataAbertura;
     private LocalDateTime ultimaAlteracao;
-    private List<String> historicoMedidas;
     private TipoDenuncia tipo;
     private String unidade;
     private String descricao;
