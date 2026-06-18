@@ -15,6 +15,7 @@ import br.org.sobei.denuncias.repository.ConclusaoDenunciaRepository;
 import br.org.sobei.denuncias.repository.DenunciaRepository;
 import br.org.sobei.denuncias.repository.HistoricoEstadoRepository;
 import br.org.sobei.denuncias.repository.MedidaAdotadaRepository;
+import br.org.sobei.denuncias.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -33,6 +34,7 @@ public class DenunciaAdminService {
     private final MedidaAdotadaRepository medidaAdotadaRepository;
     private final HistoricoEstadoRepository historicoEstadoRepository;
     private final ConclusaoDenunciaRepository conclusaoDenunciaRepository;
+    private final UsuarioRepository usuarioRepository;
 
     @Transactional(readOnly = true)
     public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridadeOrdem, String protocolo, String dataInicio, String dataFim) {
@@ -142,6 +144,7 @@ public class DenunciaAdminService {
                         .id(m.getId())
                         .descricao(m.getDescricao())
                         .dataRegistro(m.getDataRegistro())
+                        .autor(m.getAdmin() != null ? m.getAdmin().getUsuario() : null)
                         .build())
                 .collect(Collectors.toList());
 
@@ -204,6 +207,13 @@ public class DenunciaAdminService {
             throw new IllegalArgumentException("Para fechar ou arquivar, o relatório de conclusão é obrigatório.");
         }
 
+        br.org.sobei.denuncias.model.entity.Usuario usuarioLogado = null;
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+            String username = auth.getName();
+            usuarioLogado = usuarioRepository.findByUsuario(username).orElse(null);
+        }
+
         // Se enviou lista de medidas para atualizar/inserir/excluir
         if (request.getMedidas() != null) {
             for (MedidaAdotadaRequest mReq : request.getMedidas()) {
@@ -217,12 +227,14 @@ public class DenunciaAdminService {
                         medidaAdotadaRepository.delete(medida);
                     } else {
                         medida.setDescricao(mReq.getDescricao());
+                        medida.setAdmin(usuarioLogado);
                         medidaAdotadaRepository.save(medida);
                     }
                 } else if (StringUtils.hasText(mReq.getDescricao())) {
                     MedidaAdotada medida = MedidaAdotada.builder()
                             .denuncia(d)
                             .descricao(mReq.getDescricao())
+                            .admin(usuarioLogado)
                             .build();
                     medidaAdotadaRepository.save(medida);
                 }
@@ -234,6 +246,7 @@ public class DenunciaAdminService {
             MedidaAdotada medida = MedidaAdotada.builder()
                     .denuncia(d)
                     .descricao(request.getDescricaoAcao())
+                    .admin(usuarioLogado)
                     .build();
             medidaAdotadaRepository.save(medida);
         }
@@ -244,7 +257,7 @@ public class DenunciaAdminService {
                     .denuncia(d)
                     .estadoAnterior(d.getEstado())
                     .estadoNovo(novoStatus)
-                    .admin(null)
+                    .admin(usuarioLogado)
                     .build();
             historicoEstadoRepository.save(historico);
             
@@ -258,6 +271,7 @@ public class DenunciaAdminService {
                     .denuncia(d)
                     .relatorio(request.getRelatorio())
                     .tipoConclusao(request.getTipoConclusao())
+                    .admin(usuarioLogado)
                     .build();
             conclusaoDenunciaRepository.save(conclusao);
         }
