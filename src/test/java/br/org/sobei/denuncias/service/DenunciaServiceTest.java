@@ -129,11 +129,6 @@ class DenunciaServiceTest {
                 .build();
 
         when(denunciaRepository.findByProtocolo(protocolo)).thenReturn(Optional.of(denuncia));
-        
-        MedidaAdotada medida = MedidaAdotada.builder().id(1).descricao("Medida tomadas 1").build();
-        when(medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(10))
-                .thenReturn(List.of(medida));
-        
         when(conclusaoDenunciaRepository.findById(10)).thenReturn(Optional.empty());
 
         // Act
@@ -143,8 +138,6 @@ class DenunciaServiceTest {
         assertNotNull(response);
         assertEquals(protocolo, response.getProtocolo());
         assertEquals(StatusDenuncia.EM_ANDAMENTO, response.getEstado());
-        assertEquals(1, response.getHistoricoMedidas().size());
-        assertEquals("Medida tomadas 1", response.getHistoricoMedidas().get(0));
         assertNull(response.getRelatorioConclusao());
         assertNull(response.getTipoConclusao());
     }
@@ -165,8 +158,6 @@ class DenunciaServiceTest {
                 .build();
 
         when(denunciaRepository.findByProtocolo(protocolo)).thenReturn(Optional.of(denuncia));
-        when(medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(20))
-                .thenReturn(Collections.emptyList());
 
         ConclusaoDenuncia conclusao = ConclusaoDenuncia.builder()
                 .id(20)
@@ -182,7 +173,6 @@ class DenunciaServiceTest {
         assertNotNull(response);
         assertEquals(protocolo, response.getProtocolo());
         assertEquals(StatusDenuncia.FECHADA, response.getEstado());
-        assertTrue(response.getHistoricoMedidas().isEmpty());
         assertEquals("Investigação concluída e providências tomadas.", response.getRelatorioConclusao());
         assertEquals("FINAL", response.getTipoConclusao());
     }

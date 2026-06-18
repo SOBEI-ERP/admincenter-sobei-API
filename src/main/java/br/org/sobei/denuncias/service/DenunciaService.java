@@ -90,10 +90,6 @@ public class DenunciaService {
         Denuncia denuncia = denunciaRepository.findByProtocolo(protocolo)
                 .orElseThrow(() -> new IllegalArgumentException("Protocolo não encontrado."));
 
-        List<String> medidas = medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(denuncia.getId())
-                .stream().map(MedidaAdotada::getDescricao)
-                .collect(Collectors.toList());
-
         ConclusaoDenuncia conclusao = conclusaoDenunciaRepository.findById(denuncia.getId()).orElse(null);
 
         return ConsultaProtocoloResponse.builder()
@@ -101,7 +97,6 @@ public class DenunciaService {
                 .estado(denuncia.getEstado())
                 .dataAbertura(denuncia.getDataAbertura())
                 .ultimaAlteracao(denuncia.getUltimaAlteracao())
-                .historicoMedidas(medidas)
                 .tipo(denuncia.getTipo())
                 .unidade(denuncia.getUnidade())
                 .descricao(denuncia.getDescricao())
