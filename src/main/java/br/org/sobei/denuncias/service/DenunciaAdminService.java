@@ -35,7 +35,7 @@ public class DenunciaAdminService {
     private final ConclusaoDenunciaRepository conclusaoDenunciaRepository;
 
     @Transactional(readOnly = true)
-    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridadeOrdem) {
+    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridadeOrdem, String protocolo, String dataInicio, String dataFim) {
         Specification<Denuncia> spec = (root, query, cb) -> cb.conjunction();
 
         if (StringUtils.hasText(status)) {
@@ -46,6 +46,27 @@ public class DenunciaAdminService {
         }
         if (StringUtils.hasText(unidade)) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("unidade"), unidade));
+        }
+        if (StringUtils.hasText(protocolo)) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.upper(root.get("protocolo")), "%" + protocolo.trim().toUpperCase() + "%"));
+        }
+        if (StringUtils.hasText(dataInicio)) {
+            try {
+                java.time.LocalDate startDate = java.time.LocalDate.parse(dataInicio);
+                java.time.LocalDateTime startDateTime = startDate.atStartOfDay();
+                spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("dataAbertura"), startDateTime));
+            } catch (Exception e) {
+                // Ignore parse errors
+            }
+        }
+        if (StringUtils.hasText(dataFim)) {
+            try {
+                java.time.LocalDate endDate = java.time.LocalDate.parse(dataFim);
+                java.time.LocalDateTime endDateTime = endDate.atTime(23, 59, 59, 999999999);
+                spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("dataAbertura"), endDateTime));
+            } catch (Exception e) {
+                // Ignore parse errors
+            }
         }
 
         Sort sort = "antigos".equalsIgnoreCase(ordem) ? Sort.by("dataAbertura").ascending() : Sort.by("dataAbertura").descending();
@@ -240,6 +261,7 @@ public class DenunciaAdminService {
                     .build();
             conclusaoDenunciaRepository.save(conclusao);
         }
+
 
         if (request.getPrioridade() != null) {
             if (d.getEstado() != StatusDenuncia.EM_ANDAMENTO && novoStatus != StatusDenuncia.EM_ANDAMENTO) {

@@ -57,6 +57,7 @@ public class Denuncia {
     @Column(name = "ultima_alteracao")
     private LocalDateTime ultimaAlteracao;
 
+
     @OneToOne(mappedBy = "denuncia", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private DenuncianteIdentificado denunciante;
 
