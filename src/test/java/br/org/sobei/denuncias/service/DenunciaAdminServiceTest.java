@@ -9,6 +9,7 @@ import br.org.sobei.denuncias.repository.ConclusaoDenunciaRepository;
 import br.org.sobei.denuncias.repository.DenunciaRepository;
 import br.org.sobei.denuncias.repository.HistoricoEstadoRepository;
 import br.org.sobei.denuncias.repository.MedidaAdotadaRepository;
+import br.org.sobei.denuncias.repository.UsuarioRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,6 +33,8 @@ class DenunciaAdminServiceTest {
     private HistoricoEstadoRepository historicoEstadoRepository;
     @Mock
     private ConclusaoDenunciaRepository conclusaoDenunciaRepository;
+    @Mock
+    private UsuarioRepository usuarioRepository;
 
     @InjectMocks
     private DenunciaAdminService denunciaAdminService;
@@ -66,6 +69,47 @@ class DenunciaAdminServiceTest {
         verify(conclusaoDenunciaRepository, times(1)).save(any());
         verify(historicoEstadoRepository, times(1)).save(any());
         verify(denunciaRepository, times(1)).save(any());
+    }
+
+    @Test
+    void testAtualizarDenunciaComMedidaAdotadaEUsuarioLogado() {
+        org.springframework.security.core.Authentication auth = mock(org.springframework.security.core.Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getName()).thenReturn("admin_teste");
+        
+        org.springframework.security.core.context.SecurityContext securityContext = mock(org.springframework.security.core.context.SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(auth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
+
+        try {
+            Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.EM_ANDAMENTO).build();
+            when(denunciaRepository.findByProtocolo("XYZ-123-456")).thenReturn(Optional.of(denuncia));
+
+            br.org.sobei.denuncias.model.entity.Usuario usuario = br.org.sobei.denuncias.model.entity.Usuario.builder()
+                    .id(2)
+                    .usuario("admin_teste")
+                    .build();
+            when(usuarioRepository.findByUsuario("admin_teste")).thenReturn(Optional.of(usuario));
+
+            AtualizarDenunciaRequest request = new AtualizarDenunciaRequest();
+            request.setStatus(StatusDenuncia.EM_ANDAMENTO);
+            
+            br.org.sobei.denuncias.dto.request.MedidaAdotadaRequest mReq = new br.org.sobei.denuncias.dto.request.MedidaAdotadaRequest();
+            mReq.setDescricao("Nova medida adotada teste");
+            request.setMedidas(java.util.List.of(mReq));
+
+            DenunciaDetalheResponse response = denunciaAdminService.atualizarDenuncia("XYZ-123-456", request);
+
+            assertNotNull(response);
+            org.mockito.ArgumentCaptor<br.org.sobei.denuncias.model.entity.MedidaAdotada> captor = 
+                    org.mockito.ArgumentCaptor.forClass(br.org.sobei.denuncias.model.entity.MedidaAdotada.class);
+            verify(medidaAdotadaRepository, times(1)).save(captor.capture());
+            assertEquals("Nova medida adotada teste", captor.getValue().getDescricao());
+            assertNotNull(captor.getValue().getAdmin());
+            assertEquals("admin_teste", captor.getValue().getAdmin().getUsuario());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 
 }

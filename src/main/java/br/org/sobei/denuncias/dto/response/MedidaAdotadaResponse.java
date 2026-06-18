@@ -15,4 +15,5 @@ public class MedidaAdotadaResponse {
     private Integer id;
     private String descricao;
     private LocalDateTime dataRegistro;
+    private String autor;
 }
