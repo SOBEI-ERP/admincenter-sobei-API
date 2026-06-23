@@ -210,8 +210,8 @@ public class DenunciaAdminService {
         br.org.sobei.denuncias.model.entity.Usuario usuarioLogado = null;
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-            String username = auth.getName();
-            usuarioLogado = usuarioRepository.findByUsuario(username).orElse(null);
+            String email = auth.getName();
+            usuarioLogado = usuarioRepository.findByEmail(email).orElse(null);
         }
 
         // Se enviou lista de medidas para atualizar/inserir/excluir

@@ -28,9 +28,13 @@ public class UsuarioService {
         if (usuarioRepository.findByUsuario(request.getUsuario()).isPresent()) {
             throw new IllegalArgumentException("Nome de usuário já existe.");
         }
+        if (usuarioRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email já cadastrado.");
+        }
 
         Usuario novoUsuario = Usuario.builder()
                 .usuario(request.getUsuario())
+                .email(request.getEmail())
                 .senhaHash(passwordEncoder.encode(request.getSenha()))
                 .nivel(request.getNivel())
                 .build();
@@ -57,6 +61,7 @@ public class UsuarioService {
         return UsuarioDto.builder()
                 .id(usuario.getId())
                 .usuario(usuario.getUsuario())
+                .email(usuario.getEmail())
                 .nivel(usuario.getNivel())
                 .build();
     }

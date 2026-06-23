@@ -75,7 +75,7 @@ class DenunciaAdminServiceTest {
     void testAtualizarDenunciaComMedidaAdotadaEUsuarioLogado() {
         org.springframework.security.core.Authentication auth = mock(org.springframework.security.core.Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
-        when(auth.getName()).thenReturn("admin_teste");
+        when(auth.getName()).thenReturn("admin_teste@sobei.org.br");
         
         org.springframework.security.core.context.SecurityContext securityContext = mock(org.springframework.security.core.context.SecurityContext.class);
         when(securityContext.getAuthentication()).thenReturn(auth);
@@ -88,8 +88,9 @@ class DenunciaAdminServiceTest {
             br.org.sobei.denuncias.model.entity.Usuario usuario = br.org.sobei.denuncias.model.entity.Usuario.builder()
                     .id(2)
                     .usuario("admin_teste")
+                    .email("admin_teste@sobei.org.br")
                     .build();
-            when(usuarioRepository.findByUsuario("admin_teste")).thenReturn(Optional.of(usuario));
+            when(usuarioRepository.findByEmail("admin_teste@sobei.org.br")).thenReturn(Optional.of(usuario));
 
             AtualizarDenunciaRequest request = new AtualizarDenunciaRequest();
             request.setStatus(StatusDenuncia.EM_ANDAMENTO);

@@ -26,6 +26,7 @@ public class LoginResponse {
     @Builder
     public static class UserInfo {
         private String usuario;
+        private String email;
         private String nivel;
     }
 }

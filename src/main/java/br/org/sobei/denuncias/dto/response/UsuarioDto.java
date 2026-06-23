@@ -15,5 +15,6 @@ import lombok.Setter;
 public class UsuarioDto {
     private Integer id;
     private String usuario;
+    private String email;
     private NivelAdmin nivel;
 }
