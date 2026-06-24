@@ -32,6 +32,9 @@ public class Usuario {
     @Column(name = "nivel", nullable = false)
     private br.org.sobei.denuncias.model.enums.NivelAdmin nivel;
 
+    @Column(name = "unidade", length = 100)
+    private String unidade;
+
     @CreationTimestamp
     @Column(name = "data_criacao", updatable = false)
     private LocalDateTime dataCriacao;

@@ -7,14 +7,15 @@ import lombok.Getter;
 import java.util.stream.Stream;
 
 @Getter
-public enum NivelAdmin {
-    admin("admin"),
-    suporte("suporte"),
-    diretora("diretora");
+public enum TipoContrato {
+    CLT("clt"),
+    ESTAGIO("estagio"),
+    PJ("pj"),
+    TEMPORARIO("temporario");
 
     private final String value;
 
-    NivelAdmin(String value) {
+    TipoContrato(String value) {
         this.value = value;
     }
 
@@ -24,11 +25,10 @@ public enum NivelAdmin {
     }
 
     @JsonCreator
-    public static NivelAdmin fromValue(String value) {
-        return Stream.of(NivelAdmin.values())
+    public static TipoContrato fromValue(String value) {
+        return Stream.of(TipoContrato.values())
                 .filter(s -> s.getValue().equalsIgnoreCase(value) || s.name().equalsIgnoreCase(value))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Nivel invalido: " + value));
+                .orElseThrow(() -> new IllegalArgumentException("Tipo de contrato invalido: " + value));
     }
 }
-

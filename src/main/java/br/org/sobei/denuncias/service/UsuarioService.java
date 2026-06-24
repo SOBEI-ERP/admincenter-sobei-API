@@ -32,11 +32,19 @@ public class UsuarioService {
             throw new IllegalArgumentException("Email já cadastrado.");
         }
 
+        // Valida que diretoras devem ter unidade vinculada
+        if (request.getNivel() == br.org.sobei.denuncias.model.enums.NivelAdmin.diretora) {
+            if (request.getUnidade() == null || request.getUnidade().isBlank()) {
+                throw new IllegalArgumentException("A unidade é obrigatória para o nível diretora.");
+            }
+        }
+
         Usuario novoUsuario = Usuario.builder()
                 .usuario(request.getUsuario())
                 .email(request.getEmail())
                 .senhaHash(passwordEncoder.encode(request.getSenha()))
                 .nivel(request.getNivel())
+                .unidade(request.getUnidade())
                 .build();
 
         Usuario salvo = usuarioRepository.save(novoUsuario);
@@ -63,6 +71,7 @@ public class UsuarioService {
                 .usuario(usuario.getUsuario())
                 .email(usuario.getEmail())
                 .nivel(usuario.getNivel())
+                .unidade(usuario.getUnidade())
                 .build();
     }
 }

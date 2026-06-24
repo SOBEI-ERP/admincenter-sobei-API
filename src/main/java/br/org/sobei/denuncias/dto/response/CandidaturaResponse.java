@@ -1,21 +1,22 @@
 package br.org.sobei.denuncias.dto.response;
 
-import br.org.sobei.denuncias.model.enums.NivelAdmin;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UsuarioDto {
+public class CandidaturaResponse {
     private Integer id;
-    private String usuario;
+    private String nomeCompleto;
     private String email;
-    private NivelAdmin nivel;
-    private String unidade;
+    private String telefone;
+    private String cartaApresentacao;
+    private String curriculoNome;
+    private LocalDateTime dataEnvio;
 }

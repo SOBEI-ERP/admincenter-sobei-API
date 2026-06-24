@@ -40,6 +40,7 @@ public class AuthService {
                         .usuario(user.getUsuario())
                         .email(user.getEmail())
                         .nivel(user.getNivel().name())
+                        .unidade(user.getUnidade())
                         .build())
                 .build();
     }
@@ -52,6 +53,7 @@ public class AuthService {
                 .usuario(user.getUsuario())
                 .email(user.getEmail())
                 .nivel(user.getNivel().name())
+                .unidade(user.getUnidade())
                 .build();
     }
 }

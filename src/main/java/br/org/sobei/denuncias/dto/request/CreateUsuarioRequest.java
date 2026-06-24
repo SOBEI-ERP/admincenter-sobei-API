@@ -27,4 +27,6 @@ public class CreateUsuarioRequest {
 
     @NotNull(message = "O nível é obrigatório")
     private NivelAdmin nivel;
+
+    private String unidade;
 }

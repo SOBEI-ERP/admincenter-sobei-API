@@ -28,5 +28,6 @@ public class LoginResponse {
         private String usuario;
         private String email;
         private String nivel;
+        private String unidade;
     }
 }
