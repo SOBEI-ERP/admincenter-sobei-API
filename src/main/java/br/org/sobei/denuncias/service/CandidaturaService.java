@@ -95,6 +95,7 @@ public class CandidaturaService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Resource baixarCurriculo(Integer candidaturaId) {
         Candidatura candidatura = candidaturaRepository.findById(candidaturaId)
                 .orElseThrow(() -> new IllegalArgumentException("Candidatura não encontrada."));
@@ -113,6 +114,7 @@ public class CandidaturaService {
         }
     }
 
+    @Transactional(readOnly = true)
     public String getCurriculoNome(Integer candidaturaId) {
         Candidatura candidatura = candidaturaRepository.findById(candidaturaId)
                 .orElseThrow(() -> new IllegalArgumentException("Candidatura não encontrada."));
@@ -122,6 +124,7 @@ public class CandidaturaService {
     /**
      * Verifica se a candidatura pertence a uma vaga da unidade do admin.
      */
+    @Transactional(readOnly = true)
     public String getUnidadeDaCandidatura(Integer candidaturaId) {
         Candidatura candidatura = candidaturaRepository.findById(candidaturaId)
                 .orElseThrow(() -> new IllegalArgumentException("Candidatura não encontrada."));
