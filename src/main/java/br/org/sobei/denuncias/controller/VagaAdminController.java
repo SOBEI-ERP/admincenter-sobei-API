@@ -96,9 +96,18 @@ public class VagaAdminController {
         Resource resource = candidaturaService.baixarCurriculo(candidaturaId);
         String filename = candidaturaService.getCurriculoNome(candidaturaId);
 
+        String contentType = "application/octet-stream";
+        if (filename.toLowerCase().endsWith(".pdf")) {
+            contentType = "application/pdf";
+        } else if (filename.toLowerCase().endsWith(".docx")) {
+            contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        } else if (filename.toLowerCase().endsWith(".doc")) {
+            contentType = "application/msword";
+        }
+
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
                 .body(resource);
     }
 }
