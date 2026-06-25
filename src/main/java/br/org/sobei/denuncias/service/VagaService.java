@@ -30,35 +30,49 @@ public class VagaService {
     // ---- Admin (Diretora) ----
 
     @Transactional(readOnly = true)
-    public List<VagaResponse> listarPorUnidade(String adminEmail) {
+    public List<VagaResponse> listar(String adminEmail, StatusVaga status, String unidade) {
         Usuario admin = getAdmin(adminEmail);
-        validarDiretora(admin);
-
-        return vagaRepository.findByUnidadeOrderByDataCriacaoDesc(admin.getUnidade())
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<VagaResponse> listarPorUnidadeEStatus(String adminEmail, StatusVaga status) {
-        Usuario admin = getAdmin(adminEmail);
-        validarDiretora(admin);
-
-        return vagaRepository.findByUnidadeAndStatusOrderByDataCriacaoDesc(admin.getUnidade(), status)
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        
+        if (admin.getNivel() == NivelAdmin.suporte) {
+            List<Vaga> vagas;
+            if (unidade != null && !unidade.isBlank()) {
+                if (status != null) {
+                    vagas = vagaRepository.findByUnidadeAndStatusOrderByDataCriacaoDesc(unidade, status);
+                } else {
+                    vagas = vagaRepository.findByUnidadeOrderByDataCriacaoDesc(unidade);
+                }
+            } else {
+                if (status != null) {
+                    vagas = vagaRepository.findByStatusOrderByDataCriacaoDesc(status);
+                } else {
+                    vagas = vagaRepository.findAllByOrderByDataCriacaoDesc();
+                }
+            }
+            return vagas.stream().map(this::toResponse).collect(Collectors.toList());
+        } else {
+            validarDiretora(admin);
+            List<Vaga> vagas;
+            if (status != null) {
+                vagas = vagaRepository.findByUnidadeAndStatusOrderByDataCriacaoDesc(admin.getUnidade(), status);
+            } else {
+                vagas = vagaRepository.findByUnidadeOrderByDataCriacaoDesc(admin.getUnidade());
+            }
+            return vagas.stream().map(this::toResponse).collect(Collectors.toList());
+        }
     }
 
     @Transactional(readOnly = true)
     public VagaResponse buscarPorId(Integer id, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
-        validarDiretora(admin);
-
+        
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
+        if (admin.getNivel() == NivelAdmin.suporte) {
+            return toResponse(vaga);
+        }
+
+        validarDiretora(admin);
         if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
             throw new IllegalArgumentException("Você não tem permissão para acessar esta vaga.");
         }
@@ -116,13 +130,15 @@ public class VagaService {
     @Transactional(readOnly = true)
     public List<CandidaturaResponse> listarCandidaturas(Integer vagaId, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
-        validarDiretora(admin);
-
+        
         Vaga vaga = vagaRepository.findById(vagaId)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
-            throw new IllegalArgumentException("Você não tem permissão para acessar candidaturas desta vaga.");
+        if (admin.getNivel() != NivelAdmin.suporte) {
+            validarDiretora(admin);
+            if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
+                throw new IllegalArgumentException("Você não tem permissão para acessar candidaturas desta vaga.");
+            }
         }
 
         return candidaturaRepository.findByVagaIdOrderByDataEnvioDesc(vagaId)

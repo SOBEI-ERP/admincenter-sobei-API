@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import br.org.sobei.denuncias.model.enums.NivelAdmin;
 
 import java.security.Principal;
 import java.util.List;
@@ -29,24 +30,25 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Vagas (Admin/Diretora)", description = "Gerenciamento de vagas por diretoras de unidade")
 @SecurityRequirement(name = "BearerAuth")
-@PreAuthorize("hasRole('DIRETORA')")
+@PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE')")
 public class VagaAdminController {
 
     private final VagaService vagaService;
     private final CandidaturaService candidaturaService;
     private final UsuarioRepository usuarioRepository;
 
-    @Operation(summary = "Listar vagas da unidade", description = "Lista todas as vagas da unidade da diretora autenticada.")
+    @Operation(summary = "Listar vagas da unidade", description = "Lista todas as vagas da unidade da diretora autenticada ou todas se for suporte.")
     @GetMapping
     public ResponseEntity<List<VagaResponse>> listar(
             Principal principal,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String unidade) {
 
+        StatusVaga statusVaga = null;
         if (status != null && !status.isBlank()) {
-            StatusVaga statusVaga = StatusVaga.fromValue(status);
-            return ResponseEntity.ok(vagaService.listarPorUnidadeEStatus(principal.getName(), statusVaga));
+            statusVaga = StatusVaga.fromValue(status);
         }
-        return ResponseEntity.ok(vagaService.listarPorUnidade(principal.getName()));
+        return ResponseEntity.ok(vagaService.listar(principal.getName(), statusVaga, unidade));
     }
 
     @Operation(summary = "Detalhes de uma vaga", description = "Retorna os detalhes completos de uma vaga.")
@@ -57,12 +59,14 @@ public class VagaAdminController {
 
     @Operation(summary = "Criar vaga", description = "Cria uma nova vaga na unidade da diretora.")
     @PostMapping
+    @PreAuthorize("hasRole('DIRETORA')")
     public ResponseEntity<VagaResponse> criar(@Valid @RequestBody CriarVagaRequest request, Principal principal) {
         return ResponseEntity.ok(vagaService.criar(request, principal.getName()));
     }
 
     @Operation(summary = "Atualizar vaga", description = "Atualiza os dados de uma vaga existente.")
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('DIRETORA')")
     public ResponseEntity<VagaResponse> atualizar(
             @PathVariable Integer id,
             @Valid @RequestBody AtualizarVagaRequest request,
@@ -84,13 +88,15 @@ public class VagaAdminController {
             @PathVariable Integer candidaturaId,
             Principal principal) {
 
-        // Validar que a candidatura pertence à unidade da diretora
-        String unidadeCandidatura = candidaturaService.getUnidadeDaCandidatura(candidaturaId);
+        // Validar permissão
         Usuario admin = usuarioRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
-        if (!unidadeCandidatura.equalsIgnoreCase(admin.getUnidade())) {
-            throw new IllegalArgumentException("Você não tem permissão para acessar este currículo.");
+        if (admin.getNivel() != NivelAdmin.suporte) {
+            String unidadeCandidatura = candidaturaService.getUnidadeDaCandidatura(candidaturaId);
+            if (admin.getUnidade() == null || !unidadeCandidatura.equalsIgnoreCase(admin.getUnidade())) {
+                throw new IllegalArgumentException("Você não tem permissão para acessar este currículo.");
+            }
         }
 
         Resource resource = candidaturaService.baixarCurriculo(candidaturaId);
