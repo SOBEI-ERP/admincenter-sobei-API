@@ -23,14 +23,14 @@ public class AuthService {
 
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsuario(), request.getSenha())
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getSenha())
         );
 
-        Usuario user = usuarioRepository.findByUsuario(request.getUsuario())
+        Usuario user = usuarioRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
         String jwtToken = jwtService.generateToken(
-                new User(user.getUsuario(), user.getSenhaHash(), Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getNivel().name().toUpperCase())))
+                new User(user.getEmail(), user.getSenhaHash(), Collections.singletonList(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getNivel().name().toUpperCase())))
         );
 
         return LoginResponse.builder()
@@ -38,18 +38,22 @@ public class AuthService {
                 .token(jwtToken)
                 .user(LoginResponse.UserInfo.builder()
                         .usuario(user.getUsuario())
+                        .email(user.getEmail())
                         .nivel(user.getNivel().name())
+                        .unidade(user.getUnidade())
                         .build())
                 .build();
     }
 
-    public LoginResponse.UserInfo getAuthenticatedUser(String username) {
-        Usuario user = usuarioRepository.findByUsuario(username)
+    public LoginResponse.UserInfo getAuthenticatedUser(String email) {
+        Usuario user = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
         return LoginResponse.UserInfo.builder()
                 .usuario(user.getUsuario())
+                .email(user.getEmail())
                 .nivel(user.getNivel().name())
+                .unidade(user.getUnidade())
                 .build();
     }
 }

@@ -25,9 +25,15 @@ public class Usuario {
     @Column(name = "senha_hash", nullable = false)
     private String senhaHash;
 
+    @Column(nullable = false, unique = true, length = 255)
+    private String email;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "nivel", nullable = false)
     private br.org.sobei.denuncias.model.enums.NivelAdmin nivel;
+
+    @Column(name = "unidade", length = 100)
+    private String unidade;
 
     @CreationTimestamp
     @Column(name = "data_criacao", updatable = false)
