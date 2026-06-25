@@ -125,7 +125,7 @@ class VagaServiceTest {
         when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
         when(vagaRepository.findByUnidadeOrderByDataCriacaoDesc("Imbuias")).thenReturn(List.of(vaga1, vaga2));
 
-        List<VagaResponse> responseList = vagaService.listarPorUnidade("diretora@sobei.org.br");
+        List<VagaResponse> responseList = vagaService.listar("diretora@sobei.org.br", null, null);
 
         assertNotNull(responseList);
         assertEquals(2, responseList.size());
