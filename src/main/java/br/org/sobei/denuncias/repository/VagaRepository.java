@@ -15,4 +15,6 @@ public interface VagaRepository extends JpaRepository<Vaga, Integer> {
     List<Vaga> findByUnidadeAndStatusOrderByDataCriacaoDesc(String unidade, StatusVaga status);
 
     List<Vaga> findByStatusOrderByDataCriacaoDesc(StatusVaga status);
+
+    List<Vaga> findAllByOrderByDataCriacaoDesc();
 }
