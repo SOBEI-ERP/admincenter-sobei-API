@@ -11,7 +11,8 @@ public enum TipoContrato {
     CLT("clt"),
     ESTAGIO("estagio"),
     PJ("pj"),
-    TEMPORARIO("temporario");
+    TEMPORARIO("temporario"),
+    JOVEM_APRENDIZ("jovem_aprendiz");
 
     private final String value;
 
