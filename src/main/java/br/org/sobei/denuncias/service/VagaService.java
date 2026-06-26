@@ -83,12 +83,22 @@ public class VagaService {
     @Transactional
     public VagaResponse criar(CriarVagaRequest request, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
-        validarDiretora(admin);
+        
+        String unidadeVaga;
+        if (admin.getNivel() == NivelAdmin.suporte) {
+            if (request.getUnidade() == null || request.getUnidade().isBlank()) {
+                throw new IllegalArgumentException("A unidade é obrigatória para o usuário de suporte.");
+            }
+            unidadeVaga = request.getUnidade();
+        } else {
+            validarDiretora(admin);
+            unidadeVaga = admin.getUnidade();
+        }
 
         Vaga vaga = Vaga.builder()
                 .titulo(request.getTitulo())
                 .departamento(request.getDepartamento())
-                .unidade(admin.getUnidade())
+                .unidade(unidadeVaga)
                 .descricao(request.getDescricao())
                 .requisitos(request.getRequisitos())
                 .beneficios(request.getBeneficios())
@@ -105,13 +115,20 @@ public class VagaService {
     @Transactional
     public VagaResponse atualizar(Integer id, AtualizarVagaRequest request, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
-        validarDiretora(admin);
 
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
-            throw new IllegalArgumentException("Você não tem permissão para editar esta vaga.");
+        if (admin.getNivel() == NivelAdmin.suporte) {
+            if (request.getUnidade() == null || request.getUnidade().isBlank()) {
+                throw new IllegalArgumentException("A unidade é obrigatória para o usuário de suporte.");
+            }
+            vaga.setUnidade(request.getUnidade());
+        } else {
+            validarDiretora(admin);
+            if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
+                throw new IllegalArgumentException("Você não tem permissão para editar esta vaga.");
+            }
         }
 
         vaga.setTitulo(request.getTitulo());

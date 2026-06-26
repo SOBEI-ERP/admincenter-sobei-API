@@ -159,4 +159,53 @@ class VagaServiceTest {
 
         verify(vagaRepository, never()).save(any(Vaga.class));
     }
+
+    @Test
+    void testCriarVagaSuporteComSucesso() {
+        Usuario admin = Usuario.builder()
+                .id(2)
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+
+        CriarVagaRequest request = new CriarVagaRequest();
+        request.setTitulo("Gerente");
+        request.setDepartamento("Projetos");
+        request.setDescricao("Descrição da vaga");
+        request.setRequisitos("Requisitos");
+        request.setModalidade(ModalidadeVaga.PRESENCIAL);
+        request.setTipoContrato(TipoContrato.CLT);
+        request.setUnidade("CCINTER");
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.save(any(Vaga.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        VagaResponse response = vagaService.criar(request, "suporte@sobei.org.br");
+
+        assertNotNull(response);
+        assertEquals("Gerente", response.getTitulo());
+        assertEquals("CCINTER", response.getUnidade());
+
+        verify(vagaRepository, times(1)).save(any(Vaga.class));
+    }
+
+    @Test
+    void testCriarVagaSuporteSemUnidadeThrowsException() {
+        Usuario admin = Usuario.builder()
+                .id(2)
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+
+        CriarVagaRequest request = new CriarVagaRequest();
+        request.setTitulo("Gerente");
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            vagaService.criar(request, "suporte@sobei.org.br");
+        });
+
+        verify(vagaRepository, never()).save(any(Vaga.class));
+    }
 }

@@ -34,4 +34,6 @@ public class CriarVagaRequest {
 
     @NotNull(message = "O tipo de contrato é obrigatório")
     private TipoContrato tipoContrato;
+
+    private String unidade;
 }
