@@ -94,7 +94,7 @@ public class VagaService {
                 .beneficios(request.getBeneficios())
                 .modalidade(request.getModalidade())
                 .tipoContrato(request.getTipoContrato())
-                .status(StatusVaga.ABERTA)
+                .status(StatusVaga.ATIVO)
                 .admin(admin)
                 .build();
 
@@ -159,7 +159,7 @@ public class VagaService {
 
     @Transactional(readOnly = true)
     public List<VagaPublicResponse> listarPublicas() {
-        return vagaRepository.findByStatusOrderByDataCriacaoDesc(StatusVaga.ABERTA)
+        return vagaRepository.findByStatusOrderByDataCriacaoDesc(StatusVaga.ATIVO)
                 .stream()
                 .map(this::toPublicResponse)
                 .collect(Collectors.toList());
@@ -169,10 +169,6 @@ public class VagaService {
     public VagaPublicResponse buscarPublicaPorId(Integer id) {
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
-
-        if (vaga.getStatus() != StatusVaga.ABERTA) {
-            throw new IllegalArgumentException("Esta vaga não está mais disponível.");
-        }
 
         return toPublicResponse(vaga);
     }
@@ -222,6 +218,7 @@ public class VagaService {
                 .beneficios(vaga.getBeneficios())
                 .modalidade(vaga.getModalidade())
                 .tipoContrato(vaga.getTipoContrato())
+                .status(vaga.getStatus())
                 .dataCriacao(vaga.getDataCriacao())
                 .build();
     }

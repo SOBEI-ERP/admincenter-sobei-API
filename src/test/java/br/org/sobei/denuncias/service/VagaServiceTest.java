@@ -65,7 +65,7 @@ class VagaServiceTest {
         assertNotNull(response);
         assertEquals("Auxiliar Administrativo", response.getTitulo());
         assertEquals("Imbuias", response.getUnidade());
-        assertEquals(StatusVaga.ABERTA, response.getStatus());
+        assertEquals(StatusVaga.ATIVO, response.getStatus());
 
         verify(vagaRepository, times(1)).save(any(Vaga.class));
     }
@@ -119,8 +119,8 @@ class VagaServiceTest {
                 .unidade("Imbuias")
                 .build();
 
-        Vaga vaga1 = Vaga.builder().id(1).titulo("Vaga 1").unidade("Imbuias").status(StatusVaga.ABERTA).build();
-        Vaga vaga2 = Vaga.builder().id(2).titulo("Vaga 2").unidade("Imbuias").status(StatusVaga.PAUSADA).build();
+        Vaga vaga1 = Vaga.builder().id(1).titulo("Vaga 1").unidade("Imbuias").status(StatusVaga.ATIVO).build();
+        Vaga vaga2 = Vaga.builder().id(2).titulo("Vaga 2").unidade("Imbuias").status(StatusVaga.EM_SELECAO).build();
 
         when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
         when(vagaRepository.findByUnidadeOrderByDataCriacaoDesc("Imbuias")).thenReturn(List.of(vaga1, vaga2));
