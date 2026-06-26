@@ -95,6 +95,10 @@ public class VagaService {
             unidadeVaga = admin.getUnidade();
         }
 
+        if (vagaRepository.existsByUnidadeAndTituloAndStatusNot(unidadeVaga, request.getTitulo(), StatusVaga.FECHADO)) {
+            throw new IllegalArgumentException("Já existe uma vaga ativa ou em seleção com este título para esta unidade.");
+        }
+
         Vaga vaga = Vaga.builder()
                 .titulo(request.getTitulo())
                 .departamento(request.getDepartamento())
@@ -129,6 +133,11 @@ public class VagaService {
             if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para editar esta vaga.");
             }
+        }
+
+        if (request.getStatus() != StatusVaga.FECHADO &&
+                vagaRepository.existsByUnidadeAndTituloAndStatusNotAndIdNot(vaga.getUnidade(), request.getTitulo(), StatusVaga.FECHADO, id)) {
+            throw new IllegalArgumentException("Já existe outra vaga ativa ou em seleção com este título para esta unidade.");
         }
 
         vaga.setTitulo(request.getTitulo());

@@ -208,4 +208,57 @@ class VagaServiceTest {
 
         verify(vagaRepository, never()).save(any(Vaga.class));
     }
+
+    @Test
+    void testCriarVagaDuplicadaThrowsException() {
+        Usuario admin = Usuario.builder()
+                .id(1)
+                .email("diretora@sobei.org.br")
+                .nivel(NivelAdmin.diretora)
+                .unidade("Imbuias")
+                .build();
+
+        CriarVagaRequest request = new CriarVagaRequest();
+        request.setTitulo("Auxiliar Administrativo");
+
+        when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.existsByUnidadeAndTituloAndStatusNot("Imbuias", "Auxiliar Administrativo", StatusVaga.FECHADO)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            vagaService.criar(request, "diretora@sobei.org.br");
+        });
+
+        verify(vagaRepository, never()).save(any(Vaga.class));
+    }
+
+    @Test
+    void testAtualizarVagaDuplicadaThrowsException() {
+        Usuario admin = Usuario.builder()
+                .id(1)
+                .email("diretora@sobei.org.br")
+                .nivel(NivelAdmin.diretora)
+                .unidade("Imbuias")
+                .build();
+
+        Vaga vaga = Vaga.builder()
+                .id(10)
+                .titulo("Auxiliar")
+                .unidade("Imbuias")
+                .status(StatusVaga.ATIVO)
+                .build();
+
+        AtualizarVagaRequest request = new AtualizarVagaRequest();
+        request.setTitulo("Auxiliar Administrativo");
+        request.setStatus(StatusVaga.ATIVO);
+
+        when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.findById(10)).thenReturn(Optional.of(vaga));
+        when(vagaRepository.existsByUnidadeAndTituloAndStatusNotAndIdNot("Imbuias", "Auxiliar Administrativo", StatusVaga.FECHADO, 10)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            vagaService.atualizar(10, request, "diretora@sobei.org.br");
+        });
+
+        verify(vagaRepository, never()).save(any(Vaga.class));
+    }
 }

@@ -17,4 +17,8 @@ public interface VagaRepository extends JpaRepository<Vaga, Integer> {
     List<Vaga> findByStatusOrderByDataCriacaoDesc(StatusVaga status);
 
     List<Vaga> findAllByOrderByDataCriacaoDesc();
+
+    boolean existsByUnidadeAndTituloAndStatusNot(String unidade, String titulo, StatusVaga status);
+
+    boolean existsByUnidadeAndTituloAndStatusNotAndIdNot(String unidade, String titulo, StatusVaga status, Integer id);
 }
