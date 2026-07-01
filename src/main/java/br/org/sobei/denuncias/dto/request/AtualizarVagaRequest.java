@@ -38,4 +38,6 @@ public class AtualizarVagaRequest {
 
     @NotNull(message = "O status é obrigatório")
     private StatusVaga status;
+
+    private String unidade;
 }

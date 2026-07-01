@@ -2,6 +2,7 @@ package br.org.sobei.denuncias.dto.response;
 
 import br.org.sobei.denuncias.model.enums.ModalidadeVaga;
 import br.org.sobei.denuncias.model.enums.TipoContrato;
+import br.org.sobei.denuncias.model.enums.StatusVaga;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,5 +24,6 @@ public class VagaPublicResponse {
     private String beneficios;
     private ModalidadeVaga modalidade;
     private TipoContrato tipoContrato;
+    private StatusVaga status;
     private LocalDateTime dataCriacao;
 }

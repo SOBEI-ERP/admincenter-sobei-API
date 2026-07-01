@@ -65,7 +65,7 @@ class VagaServiceTest {
         assertNotNull(response);
         assertEquals("Auxiliar Administrativo", response.getTitulo());
         assertEquals("Imbuias", response.getUnidade());
-        assertEquals(StatusVaga.ABERTA, response.getStatus());
+        assertEquals(StatusVaga.ATIVO, response.getStatus());
 
         verify(vagaRepository, times(1)).save(any(Vaga.class));
     }
@@ -119,8 +119,8 @@ class VagaServiceTest {
                 .unidade("Imbuias")
                 .build();
 
-        Vaga vaga1 = Vaga.builder().id(1).titulo("Vaga 1").unidade("Imbuias").status(StatusVaga.ABERTA).build();
-        Vaga vaga2 = Vaga.builder().id(2).titulo("Vaga 2").unidade("Imbuias").status(StatusVaga.PAUSADA).build();
+        Vaga vaga1 = Vaga.builder().id(1).titulo("Vaga 1").unidade("Imbuias").status(StatusVaga.ATIVO).build();
+        Vaga vaga2 = Vaga.builder().id(2).titulo("Vaga 2").unidade("Imbuias").status(StatusVaga.EM_SELECAO).build();
 
         when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
         when(vagaRepository.findByUnidadeOrderByDataCriacaoDesc("Imbuias")).thenReturn(List.of(vaga1, vaga2));
@@ -152,6 +152,108 @@ class VagaServiceTest {
 
         when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
         when(vagaRepository.findById(10)).thenReturn(Optional.of(vaga));
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            vagaService.atualizar(10, request, "diretora@sobei.org.br");
+        });
+
+        verify(vagaRepository, never()).save(any(Vaga.class));
+    }
+
+    @Test
+    void testCriarVagaSuporteComSucesso() {
+        Usuario admin = Usuario.builder()
+                .id(2)
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+
+        CriarVagaRequest request = new CriarVagaRequest();
+        request.setTitulo("Gerente");
+        request.setDepartamento("Projetos");
+        request.setDescricao("Descrição da vaga");
+        request.setRequisitos("Requisitos");
+        request.setModalidade(ModalidadeVaga.PRESENCIAL);
+        request.setTipoContrato(TipoContrato.CLT);
+        request.setUnidade("CCINTER");
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.save(any(Vaga.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        VagaResponse response = vagaService.criar(request, "suporte@sobei.org.br");
+
+        assertNotNull(response);
+        assertEquals("Gerente", response.getTitulo());
+        assertEquals("CCINTER", response.getUnidade());
+
+        verify(vagaRepository, times(1)).save(any(Vaga.class));
+    }
+
+    @Test
+    void testCriarVagaSuporteSemUnidadeThrowsException() {
+        Usuario admin = Usuario.builder()
+                .id(2)
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+
+        CriarVagaRequest request = new CriarVagaRequest();
+        request.setTitulo("Gerente");
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            vagaService.criar(request, "suporte@sobei.org.br");
+        });
+
+        verify(vagaRepository, never()).save(any(Vaga.class));
+    }
+
+    @Test
+    void testCriarVagaDuplicadaThrowsException() {
+        Usuario admin = Usuario.builder()
+                .id(1)
+                .email("diretora@sobei.org.br")
+                .nivel(NivelAdmin.diretora)
+                .unidade("Imbuias")
+                .build();
+
+        CriarVagaRequest request = new CriarVagaRequest();
+        request.setTitulo("Auxiliar Administrativo");
+
+        when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.existsByUnidadeAndTituloAndStatusNot("Imbuias", "Auxiliar Administrativo", StatusVaga.FECHADO)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            vagaService.criar(request, "diretora@sobei.org.br");
+        });
+
+        verify(vagaRepository, never()).save(any(Vaga.class));
+    }
+
+    @Test
+    void testAtualizarVagaDuplicadaThrowsException() {
+        Usuario admin = Usuario.builder()
+                .id(1)
+                .email("diretora@sobei.org.br")
+                .nivel(NivelAdmin.diretora)
+                .unidade("Imbuias")
+                .build();
+
+        Vaga vaga = Vaga.builder()
+                .id(10)
+                .titulo("Auxiliar")
+                .unidade("Imbuias")
+                .status(StatusVaga.ATIVO)
+                .build();
+
+        AtualizarVagaRequest request = new AtualizarVagaRequest();
+        request.setTitulo("Auxiliar Administrativo");
+        request.setStatus(StatusVaga.ATIVO);
+
+        when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.findById(10)).thenReturn(Optional.of(vaga));
+        when(vagaRepository.existsByUnidadeAndTituloAndStatusNotAndIdNot("Imbuias", "Auxiliar Administrativo", StatusVaga.FECHADO, 10)).thenReturn(true);
 
         assertThrows(IllegalArgumentException.class, () -> {
             vagaService.atualizar(10, request, "diretora@sobei.org.br");

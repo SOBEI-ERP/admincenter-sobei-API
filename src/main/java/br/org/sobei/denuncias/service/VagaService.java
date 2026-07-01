@@ -83,18 +83,32 @@ public class VagaService {
     @Transactional
     public VagaResponse criar(CriarVagaRequest request, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
-        validarDiretora(admin);
+        
+        String unidadeVaga;
+        if (admin.getNivel() == NivelAdmin.suporte) {
+            if (request.getUnidade() == null || request.getUnidade().isBlank()) {
+                throw new IllegalArgumentException("A unidade é obrigatória para o usuário de suporte.");
+            }
+            unidadeVaga = request.getUnidade();
+        } else {
+            validarDiretora(admin);
+            unidadeVaga = admin.getUnidade();
+        }
+
+        if (vagaRepository.existsByUnidadeAndTituloAndStatusNot(unidadeVaga, request.getTitulo(), StatusVaga.FECHADO)) {
+            throw new IllegalArgumentException("Já existe uma vaga ativa ou em seleção com este título para esta unidade.");
+        }
 
         Vaga vaga = Vaga.builder()
                 .titulo(request.getTitulo())
                 .departamento(request.getDepartamento())
-                .unidade(admin.getUnidade())
+                .unidade(unidadeVaga)
                 .descricao(request.getDescricao())
                 .requisitos(request.getRequisitos())
                 .beneficios(request.getBeneficios())
                 .modalidade(request.getModalidade())
                 .tipoContrato(request.getTipoContrato())
-                .status(StatusVaga.ABERTA)
+                .status(StatusVaga.ATIVO)
                 .admin(admin)
                 .build();
 
@@ -105,13 +119,25 @@ public class VagaService {
     @Transactional
     public VagaResponse atualizar(Integer id, AtualizarVagaRequest request, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
-        validarDiretora(admin);
 
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
-            throw new IllegalArgumentException("Você não tem permissão para editar esta vaga.");
+        if (admin.getNivel() == NivelAdmin.suporte) {
+            if (request.getUnidade() == null || request.getUnidade().isBlank()) {
+                throw new IllegalArgumentException("A unidade é obrigatória para o usuário de suporte.");
+            }
+            vaga.setUnidade(request.getUnidade());
+        } else {
+            validarDiretora(admin);
+            if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
+                throw new IllegalArgumentException("Você não tem permissão para editar esta vaga.");
+            }
+        }
+
+        if (request.getStatus() != StatusVaga.FECHADO &&
+                vagaRepository.existsByUnidadeAndTituloAndStatusNotAndIdNot(vaga.getUnidade(), request.getTitulo(), StatusVaga.FECHADO, id)) {
+            throw new IllegalArgumentException("Já existe outra vaga ativa ou em seleção com este título para esta unidade.");
         }
 
         vaga.setTitulo(request.getTitulo());
@@ -159,7 +185,7 @@ public class VagaService {
 
     @Transactional(readOnly = true)
     public List<VagaPublicResponse> listarPublicas() {
-        return vagaRepository.findByStatusOrderByDataCriacaoDesc(StatusVaga.ABERTA)
+        return vagaRepository.findByStatusOrderByDataCriacaoDesc(StatusVaga.ATIVO)
                 .stream()
                 .map(this::toPublicResponse)
                 .collect(Collectors.toList());
@@ -169,10 +195,6 @@ public class VagaService {
     public VagaPublicResponse buscarPublicaPorId(Integer id) {
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
-
-        if (vaga.getStatus() != StatusVaga.ABERTA) {
-            throw new IllegalArgumentException("Esta vaga não está mais disponível.");
-        }
 
         return toPublicResponse(vaga);
     }
@@ -222,6 +244,7 @@ public class VagaService {
                 .beneficios(vaga.getBeneficios())
                 .modalidade(vaga.getModalidade())
                 .tipoContrato(vaga.getTipoContrato())
+                .status(vaga.getStatus())
                 .dataCriacao(vaga.getDataCriacao())
                 .build();
     }

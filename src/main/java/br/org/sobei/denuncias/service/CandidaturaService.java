@@ -47,7 +47,7 @@ public class CandidaturaService {
         Vaga vaga = vagaRepository.findById(vagaId)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        if (vaga.getStatus() != StatusVaga.ABERTA) {
+        if (vaga.getStatus() != StatusVaga.ATIVO) {
             throw new IllegalArgumentException("Esta vaga não está mais aceitando candidaturas.");
         }
 

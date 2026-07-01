@@ -8,9 +8,9 @@ import java.util.stream.Stream;
 
 @Getter
 public enum StatusVaga {
-    ABERTA("aberta"),
-    PAUSADA("pausada"),
-    FECHADA("fechada");
+    ATIVO("ativo"),
+    EM_SELECAO("em_selecao"),
+    FECHADO("fechado");
 
     private final String value;
 

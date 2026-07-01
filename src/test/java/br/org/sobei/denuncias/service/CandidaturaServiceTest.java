@@ -41,7 +41,7 @@ class CandidaturaServiceTest {
     void testCandidatarVagaFechadaThrowsException() {
         Vaga vaga = Vaga.builder()
                 .id(1)
-                .status(StatusVaga.FECHADA) // Fechada
+                .status(StatusVaga.FECHADO) // Fechada
                 .build();
 
         MultipartFile file = mock(MultipartFile.class);
@@ -59,7 +59,7 @@ class CandidaturaServiceTest {
     void testCandidatarCurriculoVazioThrowsException() {
         Vaga vaga = Vaga.builder()
                 .id(1)
-                .status(StatusVaga.ABERTA)
+                .status(StatusVaga.ATIVO)
                 .build();
 
         MultipartFile file = mock(MultipartFile.class);
@@ -78,7 +78,7 @@ class CandidaturaServiceTest {
     void testCandidatarCurriculoFormatoInvalidoThrowsException() {
         Vaga vaga = Vaga.builder()
                 .id(1)
-                .status(StatusVaga.ABERTA)
+                .status(StatusVaga.ATIVO)
                 .build();
 
         MultipartFile file = mock(MultipartFile.class);
@@ -99,7 +99,7 @@ class CandidaturaServiceTest {
     void testCandidatarCurriculoTamanhoExcedidoThrowsException() {
         Vaga vaga = Vaga.builder()
                 .id(1)
-                .status(StatusVaga.ABERTA)
+                .status(StatusVaga.ATIVO)
                 .build();
 
         MultipartFile file = mock(MultipartFile.class);
@@ -119,7 +119,7 @@ class CandidaturaServiceTest {
     void testCandidatarComSucesso() throws IOException {
         Vaga vaga = Vaga.builder()
                 .id(1)
-                .status(StatusVaga.ABERTA)
+                .status(StatusVaga.ATIVO)
                 .unidade("Imbuias")
                 .build();
 

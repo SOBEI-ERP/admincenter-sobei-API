@@ -57,16 +57,14 @@ public class VagaAdminController {
         return ResponseEntity.ok(vagaService.buscarPorId(id, principal.getName()));
     }
 
-    @Operation(summary = "Criar vaga", description = "Cria uma nova vaga na unidade da diretora.")
+    @Operation(summary = "Criar vaga", description = "Cria uma nova vaga na unidade.")
     @PostMapping
-    @PreAuthorize("hasRole('DIRETORA')")
     public ResponseEntity<VagaResponse> criar(@Valid @RequestBody CriarVagaRequest request, Principal principal) {
         return ResponseEntity.ok(vagaService.criar(request, principal.getName()));
     }
 
     @Operation(summary = "Atualizar vaga", description = "Atualiza os dados de uma vaga existente.")
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('DIRETORA')")
     public ResponseEntity<VagaResponse> atualizar(
             @PathVariable Integer id,
             @Valid @RequestBody AtualizarVagaRequest request,
