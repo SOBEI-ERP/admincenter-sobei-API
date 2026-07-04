@@ -13,6 +13,11 @@ public class AtualizarDenunciaRequest {
     private StatusDenuncia status;
     
     // Usado se for tomada alguma medida
+    /**
+     * @deprecated Use a lista de {@code medidas} para registrar ações tomadas.
+     * Mantido para compatibilidade retroativa com versões antigas do frontend.
+     */
+    @Deprecated
     private String descricaoAcao;
     private java.util.List<MedidaAdotadaRequest> medidas;
     

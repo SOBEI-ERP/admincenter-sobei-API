@@ -227,7 +227,7 @@ public class VagaService {
                 .modalidade(vaga.getModalidade())
                 .tipoContrato(vaga.getTipoContrato())
                 .status(vaga.getStatus())
-                .totalCandidaturas((int) candidaturaRepository.countByVagaId(vaga.getId()))
+                .totalCandidaturas(vaga.getTotalCandidaturas() != null ? vaga.getTotalCandidaturas() : 0)
                 .dataCriacao(vaga.getDataCriacao())
                 .dataAtualizacao(vaga.getDataAtualizacao())
                 .build();

@@ -50,7 +50,4 @@ public class DenunciasApplication {
         }
     }
 
-    public static void main() {
-        System.out.println("Rodando");
-    }
 }

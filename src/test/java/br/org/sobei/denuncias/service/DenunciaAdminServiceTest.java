@@ -49,7 +49,7 @@ class DenunciaAdminServiceTest {
         request.setRelatorio(null);
 
         assertThrows(IllegalArgumentException.class, () -> {
-            denunciaAdminService.atualizarDenuncia("XYZ-123-456", request);
+            denunciaAdminService.atualizarDenuncia("XYZ-123-456", request, "admin@sobei.org.br");
         });
     }
 
@@ -63,7 +63,7 @@ class DenunciaAdminServiceTest {
         request.setRelatorio("Relatorio concluido com sucesso.");
         request.setTipoConclusao(TipoConclusao.FINAL);
 
-        DenunciaDetalheResponse response = denunciaAdminService.atualizarDenuncia("XYZ-123-456", request);
+        DenunciaDetalheResponse response = denunciaAdminService.atualizarDenuncia("XYZ-123-456", request, "admin@sobei.org.br");
 
         assertNotNull(response);
         verify(conclusaoDenunciaRepository, times(1)).save(any());
@@ -73,44 +73,32 @@ class DenunciaAdminServiceTest {
 
     @Test
     void testAtualizarDenunciaComMedidaAdotadaEUsuarioLogado() {
-        org.springframework.security.core.Authentication auth = mock(org.springframework.security.core.Authentication.class);
-        when(auth.isAuthenticated()).thenReturn(true);
-        when(auth.getName()).thenReturn("admin_teste@sobei.org.br");
+        Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.EM_ANDAMENTO).build();
+        when(denunciaRepository.findByProtocolo("XYZ-123-456")).thenReturn(Optional.of(denuncia));
+
+        br.org.sobei.denuncias.model.entity.Usuario usuario = br.org.sobei.denuncias.model.entity.Usuario.builder()
+                .id(2)
+                .usuario("admin_teste")
+                .email("admin_teste@sobei.org.br")
+                .build();
+        when(usuarioRepository.findByEmail("admin_teste@sobei.org.br")).thenReturn(Optional.of(usuario));
+
+        AtualizarDenunciaRequest request = new AtualizarDenunciaRequest();
+        request.setStatus(StatusDenuncia.EM_ANDAMENTO);
         
-        org.springframework.security.core.context.SecurityContext securityContext = mock(org.springframework.security.core.context.SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(auth);
-        org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
+        br.org.sobei.denuncias.dto.request.MedidaAdotadaRequest mReq = new br.org.sobei.denuncias.dto.request.MedidaAdotadaRequest();
+        mReq.setDescricao("Nova medida adotada teste");
+        request.setMedidas(java.util.List.of(mReq));
 
-        try {
-            Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.EM_ANDAMENTO).build();
-            when(denunciaRepository.findByProtocolo("XYZ-123-456")).thenReturn(Optional.of(denuncia));
+        DenunciaDetalheResponse response = denunciaAdminService.atualizarDenuncia("XYZ-123-456", request, "admin_teste@sobei.org.br");
 
-            br.org.sobei.denuncias.model.entity.Usuario usuario = br.org.sobei.denuncias.model.entity.Usuario.builder()
-                    .id(2)
-                    .usuario("admin_teste")
-                    .email("admin_teste@sobei.org.br")
-                    .build();
-            when(usuarioRepository.findByEmail("admin_teste@sobei.org.br")).thenReturn(Optional.of(usuario));
-
-            AtualizarDenunciaRequest request = new AtualizarDenunciaRequest();
-            request.setStatus(StatusDenuncia.EM_ANDAMENTO);
-            
-            br.org.sobei.denuncias.dto.request.MedidaAdotadaRequest mReq = new br.org.sobei.denuncias.dto.request.MedidaAdotadaRequest();
-            mReq.setDescricao("Nova medida adotada teste");
-            request.setMedidas(java.util.List.of(mReq));
-
-            DenunciaDetalheResponse response = denunciaAdminService.atualizarDenuncia("XYZ-123-456", request);
-
-            assertNotNull(response);
-            org.mockito.ArgumentCaptor<br.org.sobei.denuncias.model.entity.MedidaAdotada> captor = 
-                    org.mockito.ArgumentCaptor.forClass(br.org.sobei.denuncias.model.entity.MedidaAdotada.class);
-            verify(medidaAdotadaRepository, times(1)).save(captor.capture());
-            assertEquals("Nova medida adotada teste", captor.getValue().getDescricao());
-            assertNotNull(captor.getValue().getAdmin());
-            assertEquals("admin_teste", captor.getValue().getAdmin().getUsuario());
-        } finally {
-            org.springframework.security.core.context.SecurityContextHolder.clearContext();
-        }
+        assertNotNull(response);
+        org.mockito.ArgumentCaptor<br.org.sobei.denuncias.model.entity.MedidaAdotada> captor = 
+                org.mockito.ArgumentCaptor.forClass(br.org.sobei.denuncias.model.entity.MedidaAdotada.class);
+        verify(medidaAdotadaRepository, times(1)).save(captor.capture());
+        assertEquals("Nova medida adotada teste", captor.getValue().getDescricao());
+        assertNotNull(captor.getValue().getAdmin());
+        assertEquals("admin_teste", captor.getValue().getAdmin().getUsuario());
     }
 
 }

@@ -10,10 +10,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -33,7 +32,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int PUBLIC_LIMIT = 20;
     private static final long WINDOW_MS = 60_000L; // 1 minuto
 
-    private final Map<String, List<Long>> requestCounts = new ConcurrentHashMap<>();
+    private final Map<String, ConcurrentLinkedDeque<Long>> requestCounts = new ConcurrentHashMap<>();
 
     public RateLimitFilter() {
         // Limpeza periódica de IPs inativos para evitar memory leak
@@ -86,16 +85,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
         long now = System.currentTimeMillis();
         long windowStart = now - WINDOW_MS;
 
-        List<Long> timestamps = requestCounts.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>());
+        ConcurrentLinkedDeque<Long> timestamps = requestCounts.computeIfAbsent(key, k -> new ConcurrentLinkedDeque<>());
 
-        // Remove timestamps fora da janela
-        timestamps.removeIf(ts -> ts < windowStart);
+        // Remove timestamps antigos da ponta esquerda de forma muito eficiente O(1)
+        while (!timestamps.isEmpty() && timestamps.peekFirst() < windowStart) {
+            timestamps.pollFirst();
+        }
 
         if (timestamps.size() >= limit) {
             return true;
         }
 
-        timestamps.add(now);
+        timestamps.addLast(now);
         return false;
     }
 
@@ -115,8 +116,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private void cleanupStaleEntries() {
         long windowStart = System.currentTimeMillis() - WINDOW_MS;
         requestCounts.entrySet().removeIf(entry -> {
-            entry.getValue().removeIf(ts -> ts < windowStart);
-            return entry.getValue().isEmpty();
+            ConcurrentLinkedDeque<Long> timestamps = entry.getValue();
+            while (!timestamps.isEmpty() && timestamps.peekFirst() < windowStart) {
+                timestamps.pollFirst();
+            }
+            return timestamps.isEmpty();
         });
     }
 }
