@@ -6,9 +6,9 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sobeidenuncia}?stringtype=unspecified
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${DATABASE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:sobeidenuncia}?stringtype=unspecified}
+    username: ${DB_USER:${PGUSER:postgres}}
+    password: ${DB_PASSWORD:${PGPASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -54,8 +54,11 @@ app:
     allow-credentials: true
     max-age: 3600
 
-  upload:
-    dir: ${UPLOAD_DIR:./uploads}
+  r2:
+    endpoint: ${R2_ENDPOINT:http://localhost:9000}
+    access-key: ${R2_ACCESS_KEY_ID:minioadmin}
+    secret-key: ${R2_SECRET_ACCESS_KEY:minioadmin}
+    bucket-name: ${R2_BUCKET_NAME:sobei-uploads}
 
 logging:
   level:
