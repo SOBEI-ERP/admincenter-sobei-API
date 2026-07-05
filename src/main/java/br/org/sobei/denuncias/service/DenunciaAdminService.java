@@ -5,6 +5,7 @@ import br.org.sobei.denuncias.dto.request.MedidaAdotadaRequest;
 import br.org.sobei.denuncias.dto.response.DenunciaAdminResponse;
 import br.org.sobei.denuncias.dto.response.DenunciaDetalheResponse;
 import br.org.sobei.denuncias.dto.response.MedidaAdotadaResponse;
+import br.org.sobei.denuncias.dto.mapper.DenunciaMapper;
 import br.org.sobei.denuncias.model.entity.ConclusaoDenuncia;
 import br.org.sobei.denuncias.model.entity.Denuncia;
 import br.org.sobei.denuncias.model.entity.HistoricoEstado;
@@ -103,35 +104,9 @@ public class DenunciaAdminService {
             });
         }
 
-        return denuncias.stream().map(d -> {
-            java.time.LocalDateTime openedAt = d.getHistoricos().stream()
-                    .filter(h -> h.getEstadoNovo() == br.org.sobei.denuncias.model.enums.StatusDenuncia.EM_ANDAMENTO)
-                    .map(br.org.sobei.denuncias.model.entity.HistoricoEstado::getDataAlteracao)
-                    .min(java.time.LocalDateTime::compareTo)
-                    .orElse(null);
-
-            java.time.LocalDateTime closedAt = (d.getConclusao() != null && d.getConclusao().getTipoConclusao() == br.org.sobei.denuncias.model.enums.TipoConclusao.FINAL)
-                    ? d.getConclusao().getDataConclusao()
-                    : null;
-
-            java.time.LocalDateTime archivedAt = (d.getConclusao() != null && d.getConclusao().getTipoConclusao() == br.org.sobei.denuncias.model.enums.TipoConclusao.ARQUIVAMENTO)
-                    ? d.getConclusao().getDataConclusao()
-                    : null;
-
-            return DenunciaAdminResponse.builder()
-                    .id(d.getId())
-                    .protocolo(d.getProtocolo())
-                    .status(d.getEstado())
-                    .tipo(d.getTipo())
-                    .unidade(d.getUnidade())
-                    .dataEnvio(d.getDataAbertura())
-                    .dataAbertura(openedAt)
-                    .ultimaAlteracao(d.getUltimaAlteracao())
-                    .dataFechamento(closedAt)
-                    .dataArquivamento(archivedAt)
-                    .prioridade(d.getPrioridade())
-                    .build();
-        }).collect(Collectors.toList());
+        return denuncias.stream()
+                .map(DenunciaMapper::toAdminResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -139,63 +114,17 @@ public class DenunciaAdminService {
         Denuncia d = denunciaRepository.findByProtocolo(protocolo)
                 .orElseThrow(() -> new IllegalArgumentException("Denúncia não encontrada."));
 
-        List<MedidaAdotadaResponse> medidas = medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(d.getId())
-                .stream().map(m -> MedidaAdotadaResponse.builder()
-                        .id(m.getId())
-                        .descricao(m.getDescricao())
-                        .dataRegistro(m.getDataRegistro())
-                        .autor(m.getAdmin() != null ? m.getAdmin().getUsuario() : null)
-                        .build())
-                .collect(Collectors.toList());
+        List<MedidaAdotadaResponse> medidas = DenunciaMapper.toMedidaResponseList(
+                medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(d.getId())
+        );
 
         ConclusaoDenuncia conclusao = conclusaoDenunciaRepository.findById(d.getId()).orElse(null);
 
-        java.time.LocalDateTime openedAt = d.getHistoricos().stream()
-                .filter(h -> h.getEstadoNovo() == br.org.sobei.denuncias.model.enums.StatusDenuncia.EM_ANDAMENTO)
-                .map(br.org.sobei.denuncias.model.entity.HistoricoEstado::getDataAlteracao)
-                .min(java.time.LocalDateTime::compareTo)
-                .orElse(null);
-
-        java.time.LocalDateTime closedAt = (conclusao != null && conclusao.getTipoConclusao() == br.org.sobei.denuncias.model.enums.TipoConclusao.FINAL)
-                ? conclusao.getDataConclusao()
-                : null;
-
-        java.time.LocalDateTime archivedAt = (conclusao != null && conclusao.getTipoConclusao() == br.org.sobei.denuncias.model.enums.TipoConclusao.ARQUIVAMENTO)
-                ? conclusao.getDataConclusao()
-                : null;
-
-        var builder = DenunciaDetalheResponse.builder()
-                .id(d.getId())
-                .protocolo(d.getProtocolo())
-                .status(d.getEstado())
-                .tipo(d.getTipo())
-                .unidade(d.getUnidade())
-                .dataEnvio(d.getDataAbertura())
-                .dataAbertura(openedAt)
-                .dataFechamento(closedAt)
-                .dataArquivamento(archivedAt)
-                .descricao(d.getDescricao())
-                .envolvidos(d.getEnvolvidos())
-                .testemunhas(d.getTestemunhas())
-                .medidasAdotadas(medidas)
-                .prioridade(d.getPrioridade());
-
-        if (d.getDenunciante() != null) {
-            builder.nomeDenunciante(d.getDenunciante().getNomeCompleto())
-                    .emailDenunciante(d.getDenunciante().getEmail())
-                    .telefoneDenunciante(d.getDenunciante().getTelefone());
-        }
-
-        if (conclusao != null) {
-            builder.relatorioConclusao(conclusao.getRelatorio())
-                    .tipoConclusao(conclusao.getTipoConclusao() != null ? conclusao.getTipoConclusao().name() : null);
-        }
-
-        return builder.build();
+        return DenunciaMapper.toDetalheResponse(d, medidas, conclusao);
     }
 
     @Transactional
-    public DenunciaDetalheResponse atualizarDenuncia(String protocolo, AtualizarDenunciaRequest request) {
+    public DenunciaDetalheResponse atualizarDenuncia(String protocolo, AtualizarDenunciaRequest request, String adminEmail) {
         Denuncia d = denunciaRepository.findByProtocolo(protocolo)
                 .orElseThrow(() -> new IllegalArgumentException("Denúncia não encontrada."));
 
@@ -208,10 +137,8 @@ public class DenunciaAdminService {
         }
 
         br.org.sobei.denuncias.model.entity.Usuario usuarioLogado = null;
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-            String email = auth.getName();
-            usuarioLogado = usuarioRepository.findByEmail(email).orElse(null);
+        if (adminEmail != null) {
+            usuarioLogado = usuarioRepository.findByEmail(adminEmail).orElse(null);
         }
 
         // Se enviou lista de medidas para atualizar/inserir/excluir

@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.Formula;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -59,6 +60,9 @@ public class Vaga {
     @OneToMany(mappedBy = "vaga", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Candidatura> candidaturas = new ArrayList<>();
+
+    @Formula("(SELECT COUNT(*) FROM candidaturas c WHERE c.vaga_id = id)")
+    private Integer totalCandidaturas;
 
     @CreationTimestamp
     @Column(name = "data_criacao", updatable = false)

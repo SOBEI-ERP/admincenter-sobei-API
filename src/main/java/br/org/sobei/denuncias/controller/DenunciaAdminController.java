@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -50,8 +51,9 @@ public class DenunciaAdminController {
     @PatchMapping("/{protocolo}")
     public ResponseEntity<DenunciaDetalheResponse> atualizarDenuncia(
             @Parameter(description = "Protocolo da denúncia") @PathVariable String protocolo,
-            @Valid @RequestBody AtualizarDenunciaRequest request
+            @Valid @RequestBody AtualizarDenunciaRequest request,
+            Principal principal
     ) {
-        return ResponseEntity.ok(denunciaAdminService.atualizarDenuncia(protocolo, request));
+        return ResponseEntity.ok(denunciaAdminService.atualizarDenuncia(protocolo, request, principal.getName()));
     }
 }
