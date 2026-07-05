@@ -29,13 +29,11 @@ class CandidaturaServiceTest {
     @Mock
     private VagaRepository vagaRepository;
 
+    @Mock
+    private StorageService storageService;
+
     @InjectMocks
     private CandidaturaService candidaturaService;
-
-    @org.junit.jupiter.api.BeforeEach
-    void setUp() {
-        org.springframework.test.util.ReflectionTestUtils.setField(candidaturaService, "uploadDir", "target/test-uploads");
-    }
 
     @Test
     void testCandidatarVagaFechadaThrowsException() {
@@ -128,9 +126,9 @@ class CandidaturaServiceTest {
         when(file.getSize()).thenReturn(1000L);
         when(file.getContentType()).thenReturn("application/pdf");
         when(file.getOriginalFilename()).thenReturn("curriculo.pdf");
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream("conteudo".getBytes()));
 
         when(vagaRepository.findById(1)).thenReturn(Optional.of(vaga));
+        when(storageService.upload(any(MultipartFile.class), eq("curriculos"))).thenReturn("curriculos/random-uuid.pdf");
         when(candidaturaRepository.save(any(Candidatura.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertDoesNotThrow(() -> {
@@ -138,5 +136,7 @@ class CandidaturaServiceTest {
         });
 
         verify(candidaturaRepository, times(1)).save(any(Candidatura.class));
+        verify(storageService, times(1)).upload(any(MultipartFile.class), eq("curriculos"));
     }
 }
+

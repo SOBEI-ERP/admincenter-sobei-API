@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -80,9 +79,9 @@ public class VagaAdminController {
         return ResponseEntity.ok(vagaService.listarCandidaturas(vagaId, principal.getName()));
     }
 
-    @Operation(summary = "Download de currículo", description = "Faz o download do currículo de um candidato.")
+    @Operation(summary = "Download de currículo", description = "Faz o download do currículo de um candidato armazenado no Cloudflare R2.")
     @GetMapping("/candidaturas/{candidaturaId}/curriculo")
-    public ResponseEntity<Resource> downloadCurriculo(
+    public ResponseEntity<byte[]> downloadCurriculo(
             @PathVariable Integer candidaturaId,
             Principal principal) {
 
@@ -97,7 +96,7 @@ public class VagaAdminController {
             }
         }
 
-        Resource resource = candidaturaService.baixarCurriculo(candidaturaId);
+        byte[] fileContent = candidaturaService.baixarCurriculo(candidaturaId);
         String filename = candidaturaService.getCurriculoNome(candidaturaId);
 
         String contentType = "application/octet-stream";
@@ -112,6 +111,6 @@ public class VagaAdminController {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                .body(resource);
+                .body(fileContent);
     }
 }

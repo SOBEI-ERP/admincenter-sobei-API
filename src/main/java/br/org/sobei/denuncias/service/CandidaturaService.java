@@ -6,21 +6,11 @@ import br.org.sobei.denuncias.model.enums.StatusVaga;
 import br.org.sobei.denuncias.repository.CandidaturaRepository;
 import br.org.sobei.denuncias.repository.VagaRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Set;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -28,9 +18,7 @@ public class CandidaturaService {
 
     private final CandidaturaRepository candidaturaRepository;
     private final VagaRepository vagaRepository;
-
-    @Value("${app.upload.dir:./uploads}")
-    private String uploadDir;
+    private final StorageService storageService;
 
     private static final Set<String> ALLOWED_TYPES = Set.of(
             "application/pdf",
@@ -65,53 +53,36 @@ public class CandidaturaService {
             throw new IllegalArgumentException("Apenas arquivos PDF, DOC ou DOCX são aceitos.");
         }
 
-        // Salvar arquivo em disco
+        // Upload para o Cloudflare R2
+        String key = storageService.upload(curriculo, "curriculos");
+
         String originalFilename = curriculo.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-        String storedFilename = UUID.randomUUID() + extension;
 
-        try {
-            Path uploadPath = Paths.get(uploadDir, "curriculos");
-            Files.createDirectories(uploadPath);
-            Path filePath = uploadPath.resolve(storedFilename);
-            Files.copy(curriculo.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        Candidatura candidatura = Candidatura.builder()
+                .vaga(vaga)
+                .nomeCompleto(nomeCompleto)
+                .email(email)
+                .telefone(telefone)
+                .cartaApresentacao(cartaApresentacao)
+                .curriculoPath(key)
+                .curriculoNome(originalFilename != null ? originalFilename : key)
+                .build();
 
-            Candidatura candidatura = Candidatura.builder()
-                    .vaga(vaga)
-                    .nomeCompleto(nomeCompleto)
-                    .email(email)
-                    .telefone(telefone)
-                    .cartaApresentacao(cartaApresentacao)
-                    .curriculoPath(filePath.toString())
-                    .curriculoNome(originalFilename != null ? originalFilename : storedFilename)
-                    .build();
-
-            candidaturaRepository.save(candidatura);
-        } catch (IOException e) {
-            throw new RuntimeException("Erro ao salvar o currículo. Tente novamente.", e);
-        }
+        candidaturaRepository.save(candidatura);
     }
 
+    /**
+     * Baixa o conteúdo do currículo armazenado no Cloudflare R2.
+     *
+     * @param candidaturaId ID da candidatura
+     * @return Conteúdo do arquivo em bytes
+     */
     @Transactional(readOnly = true)
-    public Resource baixarCurriculo(Integer candidaturaId) {
+    public byte[] baixarCurriculo(Integer candidaturaId) {
         Candidatura candidatura = candidaturaRepository.findById(candidaturaId)
                 .orElseThrow(() -> new IllegalArgumentException("Candidatura não encontrada."));
 
-        try {
-            Path filePath = Paths.get(candidatura.getCurriculoPath());
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (!resource.exists() || !resource.isReadable()) {
-                throw new IllegalArgumentException("Arquivo de currículo não encontrado no servidor.");
-            }
-
-            return resource;
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Erro ao acessar o arquivo de currículo.", e);
-        }
+        return storageService.download(candidatura.getCurriculoPath());
     }
 
     @Transactional(readOnly = true)
@@ -131,3 +102,4 @@ public class CandidaturaService {
         return candidatura.getVaga().getUnidade();
     }
 }
+
