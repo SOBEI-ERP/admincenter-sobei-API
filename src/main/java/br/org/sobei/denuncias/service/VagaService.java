@@ -5,10 +5,13 @@ import br.org.sobei.denuncias.dto.request.CriarVagaRequest;
 import br.org.sobei.denuncias.dto.response.CandidaturaResponse;
 import br.org.sobei.denuncias.dto.response.VagaPublicResponse;
 import br.org.sobei.denuncias.dto.response.VagaResponse;
+import br.org.sobei.denuncias.model.entity.BancoTalento;
+import br.org.sobei.denuncias.model.entity.Candidatura;
 import br.org.sobei.denuncias.model.entity.Usuario;
 import br.org.sobei.denuncias.model.entity.Vaga;
 import br.org.sobei.denuncias.model.enums.NivelAdmin;
 import br.org.sobei.denuncias.model.enums.StatusVaga;
+import br.org.sobei.denuncias.repository.BancoTalentoRepository;
 import br.org.sobei.denuncias.repository.CandidaturaRepository;
 import br.org.sobei.denuncias.repository.UsuarioRepository;
 import br.org.sobei.denuncias.repository.VagaRepository;
@@ -26,6 +29,8 @@ public class VagaService {
     private final VagaRepository vagaRepository;
     private final CandidaturaRepository candidaturaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final StorageService storageService;
+    private final BancoTalentoRepository bancoTalentoRepository;
 
     // ---- Admin (Diretora) ----
 
@@ -147,10 +152,36 @@ public class VagaService {
         vaga.setBeneficios(request.getBeneficios());
         vaga.setModalidade(request.getModalidade());
         vaga.setTipoContrato(request.getTipoContrato());
+
+        // Se o status está mudando para FECHADO, mover candidaturas para o banco de talentos
+        if (request.getStatus() == StatusVaga.FECHADO && vaga.getStatus() != StatusVaga.FECHADO) {
+            moverCandidaturasParaBancoTalentos(vaga);
+        }
+
         vaga.setStatus(request.getStatus());
 
         Vaga salva = vagaRepository.save(vaga);
         return toResponse(salva);
+    }
+
+    @Transactional
+    public void deletar(Integer id, String adminEmail) {
+        Usuario admin = getAdmin(adminEmail);
+
+        if (admin.getNivel() != NivelAdmin.suporte) {
+            throw new IllegalArgumentException("Acesso restrito ao nível suporte.");
+        }
+
+        Vaga vaga = vagaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
+
+        // Deletar os currículos do Cloudflare R2 antes de excluir a vaga
+        List<Candidatura> candidaturas = candidaturaRepository.findByVagaIdOrderByDataEnvioDesc(id);
+        for (Candidatura candidatura : candidaturas) {
+            storageService.delete(candidatura.getCurriculoPath());
+        }
+
+        vagaRepository.delete(vaga);
     }
 
     @Transactional(readOnly = true)
@@ -200,6 +231,29 @@ public class VagaService {
     }
 
     // ---- Helpers ----
+
+    private void moverCandidaturasParaBancoTalentos(Vaga vaga) {
+        List<Candidatura> candidaturas = candidaturaRepository.findByVagaIdOrderByDataEnvioDesc(vaga.getId());
+        if (candidaturas.isEmpty()) {
+            return;
+        }
+
+        List<BancoTalento> talentos = candidaturas.stream()
+                .map(c -> BancoTalento.builder()
+                        .vaga(vaga)
+                        .nomeCompleto(c.getNomeCompleto())
+                        .email(c.getEmail())
+                        .telefone(c.getTelefone())
+                        .cartaApresentacao(c.getCartaApresentacao())
+                        .curriculoPath(c.getCurriculoPath())
+                        .curriculoNome(c.getCurriculoNome())
+                        .dataEnvioOriginal(c.getDataEnvio())
+                        .build())
+                .collect(Collectors.toList());
+
+        bancoTalentoRepository.saveAll(talentos);
+        candidaturaRepository.deleteAll(candidaturas);
+    }
 
     private Usuario getAdmin(String email) {
         return usuarioRepository.findByEmail(email)

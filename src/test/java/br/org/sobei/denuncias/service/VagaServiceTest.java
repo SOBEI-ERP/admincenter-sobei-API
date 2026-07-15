@@ -37,6 +37,12 @@ class VagaServiceTest {
     @Mock
     private UsuarioRepository usuarioRepository;
 
+    @Mock
+    private StorageService storageService;
+
+    @Mock
+    private br.org.sobei.denuncias.repository.BancoTalentoRepository bancoTalentoRepository;
+
     @InjectMocks
     private VagaService vagaService;
 
@@ -260,5 +266,104 @@ class VagaServiceTest {
         });
 
         verify(vagaRepository, never()).save(any(Vaga.class));
+    }
+
+    @Test
+    void testDeletarVagaComSucessoPorSuporte() {
+        Usuario admin = Usuario.builder()
+                .id(2)
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+
+        Vaga vaga = Vaga.builder()
+                .id(10)
+                .titulo("Vaga Suporte")
+                .unidade("Matriz")
+                .build();
+
+        br.org.sobei.denuncias.model.entity.Candidatura cand1 = br.org.sobei.denuncias.model.entity.Candidatura.builder()
+                .id(1)
+                .curriculoPath("curriculos/123.pdf")
+                .build();
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.findById(10)).thenReturn(Optional.of(vaga));
+        when(candidaturaRepository.findByVagaIdOrderByDataEnvioDesc(10)).thenReturn(List.of(cand1));
+
+        vagaService.deletar(10, "suporte@sobei.org.br");
+
+        verify(storageService, times(1)).delete("curriculos/123.pdf");
+        verify(vagaRepository, times(1)).delete(vaga);
+    }
+
+    @Test
+    void testDeletarVagaThrowsExceptionPorDiretora() {
+        Usuario admin = Usuario.builder()
+                .id(1)
+                .email("diretora@sobei.org.br")
+                .nivel(NivelAdmin.diretora)
+                .unidade("Imbuias")
+                .build();
+
+        when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            vagaService.deletar(10, "diretora@sobei.org.br");
+        });
+
+        verify(vagaRepository, never()).delete(any(Vaga.class));
+        verify(storageService, never()).delete(anyString());
+     }
+
+    @Test
+    void testMoverCandidaturasParaBancoTalentosAoFecharVaga() {
+        Usuario admin = Usuario.builder()
+                .id(1)
+                .email("diretora@sobei.org.br")
+                .nivel(NivelAdmin.diretora)
+                .unidade("Imbuias")
+                .build();
+
+        Vaga vaga = Vaga.builder()
+                .id(10)
+                .titulo("Auxiliar Administrativo")
+                .unidade("Imbuias")
+                .status(StatusVaga.ATIVO)
+                .build();
+
+        AtualizarVagaRequest request = new AtualizarVagaRequest();
+        request.setTitulo("Auxiliar Administrativo");
+        request.setDepartamento("Administrativo");
+        request.setDescricao("Nova descrição");
+        request.setRequisitos("Novos requisitos");
+        request.setModalidade(ModalidadeVaga.PRESENCIAL);
+        request.setTipoContrato(TipoContrato.CLT);
+        request.setStatus(StatusVaga.FECHADO); // Mudando status para fechado
+
+        br.org.sobei.denuncias.model.entity.Candidatura cand = br.org.sobei.denuncias.model.entity.Candidatura.builder()
+                .id(1)
+                .vaga(vaga)
+                .nomeCompleto("Candidato Teste")
+                .email("candidato@teste.com")
+                .telefone("11999999999")
+                .curriculoPath("curriculos/teste.pdf")
+                .curriculoNome("teste.pdf")
+                .dataEnvio(java.time.LocalDateTime.now())
+                .build();
+
+        when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.findById(10)).thenReturn(Optional.of(vaga));
+        when(candidaturaRepository.findByVagaIdOrderByDataEnvioDesc(10)).thenReturn(List.of(cand));
+        when(vagaRepository.save(any(Vaga.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        VagaResponse response = vagaService.atualizar(10, request, "diretora@sobei.org.br");
+
+        assertNotNull(response);
+        assertEquals(StatusVaga.FECHADO, response.getStatus());
+
+        verify(bancoTalentoRepository, times(1)).saveAll(anyList());
+        verify(candidaturaRepository, times(1)).deleteAll(anyList());
+        verify(vagaRepository, times(1)).save(vaga);
     }
 }

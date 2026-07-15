@@ -60,6 +60,9 @@ app:
     secret-key: ${R2_SECRET_ACCESS_KEY:minioadmin}
     bucket-name: ${R2_BUCKET_NAME:sobei-uploads}
 
+  cleanup:
+    cron: ${CLEANUP_CRON:0 0 3 * * ?}
+
 logging:
   level:
     root: INFO
