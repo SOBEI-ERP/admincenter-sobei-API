@@ -71,9 +71,9 @@ public class VagaAdminController {
         return ResponseEntity.ok(vagaService.atualizar(id, request, principal.getName()));
     }
 
-    @Operation(summary = "Excluir vaga", description = "Exclui permanentemente uma vaga e suas candidaturas associadas (incluindo currículos no R2). Exclusivo para usuários suporte.")
+    @Operation(summary = "Excluir vaga", description = "Exclui permanentemente uma vaga e suas candidaturas associadas (incluindo currículos no R2). Acessível para diretora da unidade ou suporte.")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPORTE')")
+    @PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE')")
     public ResponseEntity<Void> deletar(@PathVariable Integer id, Principal principal) {
         vagaService.deletar(id, principal.getName());
         return ResponseEntity.noContent().build();

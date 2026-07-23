@@ -168,17 +168,30 @@ public class VagaService {
     public void deletar(Integer id, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
 
-        if (admin.getNivel() != NivelAdmin.suporte) {
-            throw new IllegalArgumentException("Acesso restrito ao nível suporte.");
-        }
-
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        // Deletar os currículos do Cloudflare R2 antes de excluir a vaga
+        if (admin.getNivel() != NivelAdmin.suporte) {
+            validarDiretora(admin);
+            if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
+                throw new IllegalArgumentException("Você não tem permissão para excluir vagas desta unidade.");
+            }
+        }
+
+        // Deletar os currículos de candidaturas ativas no Cloudflare R2
         List<Candidatura> candidaturas = candidaturaRepository.findByVagaIdOrderByDataEnvioDesc(id);
         for (Candidatura candidatura : candidaturas) {
-            storageService.delete(candidatura.getCurriculoPath());
+            if (candidatura.getCurriculoPath() != null && !candidatura.getCurriculoPath().isBlank()) {
+                storageService.delete(candidatura.getCurriculoPath());
+            }
+        }
+
+        // Deletar os currículos arquivados no banco de talentos no Cloudflare R2
+        List<BancoTalento> talentos = bancoTalentoRepository.findByVagaIdOrderByDataEnvioOriginalDesc(id);
+        for (BancoTalento talento : talentos) {
+            if (talento.getCurriculoPath() != null && !talento.getCurriculoPath().isBlank()) {
+                storageService.delete(talento.getCurriculoPath());
+            }
         }
 
         vagaRepository.delete(vaga);
