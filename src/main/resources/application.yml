@@ -44,7 +44,7 @@ server:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:altere-esta-chave-secreta-com-pelo-menos-256-bits}
+    secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
   cors:

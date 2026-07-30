@@ -28,7 +28,8 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int REQUEST_LIMIT = 5;
+    private static final int PUBLIC_REQUEST_LIMIT = 10;
+    private static final int ADMIN_REQUEST_LIMIT = 30;
     private static final long WINDOW_MS = 10_000L; // 10 segundos
     private static final int RETRY_AFTER_SECONDS = 10;
 
@@ -61,15 +62,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (!path.startsWith("/api/admin/") && !path.startsWith("/api/public/")) {
+        boolean isAdminRoute = path.startsWith("/api/admin/");
+        boolean isPublicRoute = path.startsWith("/api/public/");
+
+        if (!isAdminRoute && !isPublicRoute) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String clientIp = resolveClientIp(request);
-        String key = clientIp + ":" + (path.startsWith("/api/admin/") ? "admin" : "public");
+        String key = clientIp + ":" + (isAdminRoute ? "admin" : "public");
+        int limit = isAdminRoute ? ADMIN_REQUEST_LIMIT : PUBLIC_REQUEST_LIMIT;
 
-        if (isRateLimited(key, REQUEST_LIMIT)) {
+        if (isRateLimited(key, limit)) {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setHeader("Retry-After", String.valueOf(RETRY_AFTER_SECONDS));

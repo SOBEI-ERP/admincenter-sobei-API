@@ -29,6 +29,10 @@ public class JwtService {
 
     @PostConstruct
     public void init() {
+        if (secretKey == null || secretKey.isBlank() || secretKey.length() < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET não configurado ou muito curto. Defina a variável de ambiente JWT_SECRET com pelo menos 32 caracteres.");
+        }
         byte[] keyBytes = secretKey.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }

@@ -35,9 +35,11 @@ public class DenunciaAdminController {
             @Parameter(description = "Ordenação por prioridade (ex: maior_prioridade, menor_prioridade)") @RequestParam(required = false) String prioridadeOrdem,
             @Parameter(description = "Filtrar por Protocolo") @RequestParam(required = false) String protocolo,
             @Parameter(description = "Filtrar por Data Início (yyyy-MM-dd)") @RequestParam(required = false) String dataInicio,
-            @Parameter(description = "Filtrar por Data Fim (yyyy-MM-dd)") @RequestParam(required = false) String dataFim
+            @Parameter(description = "Filtrar por Data Fim (yyyy-MM-dd)") @RequestParam(required = false) String dataFim,
+            @Parameter(description = "Número da página (base 0)") @RequestParam(required = false) Integer page,
+            @Parameter(description = "Tamanho da página (padrão sem limite)") @RequestParam(required = false) Integer size
     ) {
-        return ResponseEntity.ok(denunciaAdminService.listarDenuncias(status, tipo, unidade, ordem, prioridadeOrdem, protocolo, dataInicio, dataFim));
+        return ResponseEntity.ok(denunciaAdminService.listarDenuncias(status, tipo, unidade, ordem, prioridadeOrdem, protocolo, dataInicio, dataFim, page, size));
     }
 
     @Operation(summary = "Buscar detalhes de uma denúncia", description = "Traz o relatório completo da denúncia incluindo histórico e medidas tomadas.")

@@ -38,7 +38,7 @@ public class DenunciaAdminService {
     private final UsuarioRepository usuarioRepository;
 
     @Transactional(readOnly = true)
-    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridadeOrdem, String protocolo, String dataInicio, String dataFim) {
+    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridadeOrdem, String protocolo, String dataInicio, String dataFim, Integer page, Integer size) {
         Specification<Denuncia> spec = (root, query, cb) -> cb.conjunction();
 
         if (StringUtils.hasText(status)) {
@@ -102,6 +102,12 @@ public class DenunciaAdminService {
                     return d2.getDataAbertura().compareTo(d1.getDataAbertura());
                 }
             });
+        }
+
+        if (page != null && size != null && page >= 0 && size > 0) {
+            int fromIndex = Math.min(page * size, denuncias.size());
+            int toIndex = Math.min(fromIndex + size, denuncias.size());
+            denuncias = denuncias.subList(fromIndex, toIndex);
         }
 
         return denuncias.stream()
