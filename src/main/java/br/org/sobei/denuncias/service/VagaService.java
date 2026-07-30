@@ -182,7 +182,11 @@ public class VagaService {
         List<Candidatura> candidaturas = candidaturaRepository.findByVagaIdOrderByDataEnvioDesc(id);
         for (Candidatura candidatura : candidaturas) {
             if (candidatura.getCurriculoPath() != null && !candidatura.getCurriculoPath().isBlank()) {
-                storageService.delete(candidatura.getCurriculoPath());
+                try {
+                    storageService.delete(candidatura.getCurriculoPath());
+                } catch (Exception ignored) {
+                    // Ignora falhas de exclusão de arquivo individual no R2 para não travar a exclusão no BD
+                }
             }
         }
 
@@ -190,8 +194,20 @@ public class VagaService {
         List<BancoTalento> talentos = bancoTalentoRepository.findByVagaIdOrderByDataEnvioOriginalDesc(id);
         for (BancoTalento talento : talentos) {
             if (talento.getCurriculoPath() != null && !talento.getCurriculoPath().isBlank()) {
-                storageService.delete(talento.getCurriculoPath());
+                try {
+                    storageService.delete(talento.getCurriculoPath());
+                } catch (Exception ignored) {
+                    // Ignora falhas de exclusão de arquivo individual no R2 para não travar a exclusão no BD
+                }
             }
+        }
+
+        // Deletar os registros de banco de talentos e candidaturas vinculados para evitar violação de FK no PostgreSQL
+        if (!talentos.isEmpty()) {
+            bancoTalentoRepository.deleteAll(talentos);
+        }
+        if (!candidaturas.isEmpty()) {
+            candidaturaRepository.deleteAll(candidaturas);
         }
 
         vagaRepository.delete(vaga);
