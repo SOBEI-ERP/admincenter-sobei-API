@@ -101,4 +101,53 @@ class DenunciaAdminServiceTest {
         assertEquals("admin_teste", captor.getValue().getAdmin().getUsuario());
     }
 
+    @Test
+    void testDeletarDenunciaFechadaSuporteSucesso() {
+        Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.FECHADA).build();
+        br.org.sobei.denuncias.model.entity.Usuario suporteUser = br.org.sobei.denuncias.model.entity.Usuario.builder()
+                .id(10)
+                .email("suporte@sobei.org.br")
+                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.suporte)
+                .build();
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(suporteUser));
+        when(denunciaRepository.findByProtocolo("XYZ-123-456")).thenReturn(Optional.of(denuncia));
+
+        denunciaAdminService.deletarDenunciaFechada("XYZ-123-456", "suporte@sobei.org.br");
+
+        verify(denunciaRepository, times(1)).delete(denuncia);
+    }
+
+    @Test
+    void testDeletarDenunciaFechadaNaoSuporteThrowsException() {
+        br.org.sobei.denuncias.model.entity.Usuario adminUser = br.org.sobei.denuncias.model.entity.Usuario.builder()
+                .id(11)
+                .email("admin@sobei.org.br")
+                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.admin)
+                .build();
+
+        when(usuarioRepository.findByEmail("admin@sobei.org.br")).thenReturn(Optional.of(adminUser));
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            denunciaAdminService.deletarDenunciaFechada("XYZ-123-456", "admin@sobei.org.br");
+        });
+    }
+
+    @Test
+    void testDeletarDenunciaNaoFechadaThrowsException() {
+        Denuncia denuncia = Denuncia.builder().id(1).protocolo("XYZ-123-456").estado(StatusDenuncia.EM_ANDAMENTO).build();
+        br.org.sobei.denuncias.model.entity.Usuario suporteUser = br.org.sobei.denuncias.model.entity.Usuario.builder()
+                .id(10)
+                .email("suporte@sobei.org.br")
+                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.suporte)
+                .build();
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(suporteUser));
+        when(denunciaRepository.findByProtocolo("XYZ-123-456")).thenReturn(Optional.of(denuncia));
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            denunciaAdminService.deletarDenunciaFechada("XYZ-123-456", "suporte@sobei.org.br");
+        });
+    }
+
 }

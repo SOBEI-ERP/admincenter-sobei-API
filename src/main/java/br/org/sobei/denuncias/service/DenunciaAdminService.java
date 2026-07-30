@@ -222,6 +222,30 @@ public class DenunciaAdminService {
         return buscarDetalhes(d.getProtocolo());
     }
 
+    @Transactional
+    public void deletarDenunciaFechada(String protocolo, String adminEmail) {
+        br.org.sobei.denuncias.model.entity.Usuario usuario = usuarioRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
+
+        if (usuario.getNivel() != br.org.sobei.denuncias.model.enums.NivelAdmin.suporte) {
+            throw new IllegalArgumentException("Apenas usuários com nível SUPORTE podem excluir denúncias fechadas.");
+        }
+
+        Denuncia d = denunciaRepository.findByProtocolo(protocolo)
+                .orElseThrow(() -> new IllegalArgumentException("Denúncia não encontrada."));
+
+        if (d.getEstado() != StatusDenuncia.FECHADA) {
+            throw new IllegalArgumentException("Apenas denúncias com status FECHADA podem ser excluídas.");
+        }
+
+        List<MedidaAdotada> medidas = medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(d.getId());
+        if (!medidas.isEmpty()) {
+            medidaAdotadaRepository.deleteAll(medidas);
+        }
+
+        denunciaRepository.delete(d);
+    }
+
     private int getPrioridadeWeight(br.org.sobei.denuncias.model.enums.PrioridadeDenuncia prioridade) {
         if (prioridade == null) return 0;
         return switch (prioridade) {

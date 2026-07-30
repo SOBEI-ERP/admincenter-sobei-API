@@ -58,4 +58,14 @@ public class DenunciaAdminController {
     ) {
         return ResponseEntity.ok(denunciaAdminService.atualizarDenuncia(protocolo, request, principal.getName()));
     }
+
+    @Operation(summary = "Excluir Denúncia Fechada", description = "Exclui permanentemente uma denúncia com status FECHADA (Exclusivo para usuários de nível SUPORTE).")
+    @DeleteMapping("/{protocolo}")
+    public ResponseEntity<Void> deletarDenunciaFechada(
+            @Parameter(description = "Protocolo da denúncia") @PathVariable String protocolo,
+            Principal principal
+    ) {
+        denunciaAdminService.deletarDenunciaFechada(protocolo, principal.getName());
+        return ResponseEntity.noContent().build();
+    }
 }
