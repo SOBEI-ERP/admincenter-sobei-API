@@ -21,7 +21,7 @@ public class MensagemUnidadePublicController {
 
     private final MensagemUnidadeService mensagemUnidadeService;
 
-    @Operation(summary = "Enviar mensagem para unidade", description = "Envia uma mensagem ou intenção de vaga vinda da página pública da unidade.")
+    @Operation(summary = "Enviar mensagem para unidade", description = "Envia uma mensagem vinda da página pública da unidade.")
     @PostMapping
     public ResponseEntity<MensagemUnidadeResponse> enviar(@Valid @RequestBody CriarMensagemUnidadeRequest request) {
         return ResponseEntity.ok(mensagemUnidadeService.enviar(request));
