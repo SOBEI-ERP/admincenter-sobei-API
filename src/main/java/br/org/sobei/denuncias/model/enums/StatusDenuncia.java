@@ -25,9 +25,10 @@ public enum StatusDenuncia {
 
     @JsonCreator
     public static StatusDenuncia fromValue(String value) {
+        if (value == null || value.isBlank()) return null;
         return Stream.of(StatusDenuncia.values())
-                .filter(s -> s.getValue().equalsIgnoreCase(value))
+                .filter(s -> s.getValue().equalsIgnoreCase(value) || s.name().equalsIgnoreCase(value))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Status invalido: " + value));
+                .orElseThrow(() -> new IllegalArgumentException("Status inválido: " + value));
     }
 }

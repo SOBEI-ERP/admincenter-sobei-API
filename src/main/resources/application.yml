@@ -21,6 +21,9 @@ spring:
       max-file-size: 5MB
       max-request-size: 10MB
 
+  jackson:
+    time-zone: America/Sao_Paulo
+
   jpa:
     hibernate:
       ddl-auto: validate
