@@ -60,7 +60,7 @@ public class MensagemUnidadeService {
                 }
             }
         } else {
-            validarDiretora(admin);
+            validarDiretoraOuCoordenadora(admin);
             if (Boolean.TRUE.equals(apenasNaoLidas)) {
                 mensagens = mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseAndLidaOrderByDataEnvioDesc(admin.getUnidade(), false);
             } else {
@@ -79,7 +79,7 @@ public class MensagemUnidadeService {
                 .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada."));
 
         if (admin.getNivel() != NivelAdmin.suporte) {
-            validarDiretora(admin);
+            validarDiretoraOuCoordenadora(admin);
             if (!unidadeCombina(mensagem.getUnidade(), admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para alterar mensagens desta unidade.");
             }
@@ -98,7 +98,7 @@ public class MensagemUnidadeService {
                 .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada."));
 
         if (admin.getNivel() != NivelAdmin.suporte) {
-            validarDiretora(admin);
+            validarDiretoraOuCoordenadora(admin);
             if (!unidadeCombina(mensagem.getUnidade(), admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para excluir mensagens desta unidade.");
             }
@@ -121,12 +121,12 @@ public class MensagemUnidadeService {
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
     }
 
-    private void validarDiretora(Usuario admin) {
-        if (admin.getNivel() != NivelAdmin.diretora) {
-            throw new IllegalArgumentException("Acesso restrito ao nível diretora.");
+    private void validarDiretoraOuCoordenadora(Usuario admin) {
+        if (admin.getNivel() != NivelAdmin.diretora && admin.getNivel() != NivelAdmin.coordenadora) {
+            throw new IllegalArgumentException("Acesso restrito a diretoras e coordenadoras.");
         }
         if (admin.getUnidade() == null || admin.getUnidade().isBlank()) {
-            throw new IllegalArgumentException("Diretora sem unidade vinculada. Contacte o suporte.");
+            throw new IllegalArgumentException("Usuário sem unidade vinculada. Contate o suporte.");
         }
     }
 

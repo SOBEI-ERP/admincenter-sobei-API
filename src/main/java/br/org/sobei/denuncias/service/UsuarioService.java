@@ -32,10 +32,11 @@ public class UsuarioService {
             throw new IllegalArgumentException("Email já cadastrado.");
         }
 
-        // Valida que diretoras devem ter unidade vinculada
-        if (request.getNivel() == br.org.sobei.denuncias.model.enums.NivelAdmin.diretora) {
+        // Valida que diretoras e coordenadoras devem ter unidade vinculada
+        if (request.getNivel() == br.org.sobei.denuncias.model.enums.NivelAdmin.diretora ||
+            request.getNivel() == br.org.sobei.denuncias.model.enums.NivelAdmin.coordenadora) {
             if (request.getUnidade() == null || request.getUnidade().isBlank()) {
-                throw new IllegalArgumentException("A unidade é obrigatória para o nível diretora.");
+                throw new IllegalArgumentException("A unidade é obrigatória para o nível " + request.getNivel().getValue() + ".");
             }
         }
 

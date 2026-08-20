@@ -16,9 +16,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/mensagens-unidade")
 @RequiredArgsConstructor
-@Tag(name = "Mensagens de Unidades (Admin)", description = "Gestão de mensagens das unidades por diretoras e suporte")
+@Tag(name = "Mensagens de Unidades (Admin)", description = "Gestão de mensagens das unidades por diretoras, coordenadoras e suporte")
 @SecurityRequirement(name = "BearerAuth")
-@PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE')")
+@PreAuthorize("hasAnyRole('DIRETORA', 'COORDENADORA', 'SUPORTE')")
 public class MensagemUnidadeAdminController {
 
     private final MensagemUnidadeService mensagemUnidadeService;

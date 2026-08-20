@@ -122,11 +122,11 @@ class DenunciaAdminServiceTest {
     void testDeletarDenunciaFechadaNaoSuporteThrowsException() {
         br.org.sobei.denuncias.model.entity.Usuario adminUser = br.org.sobei.denuncias.model.entity.Usuario.builder()
                 .id(11)
-                .email("admin@sobei.org.br")
-                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.admin)
+                .email("dp@sobei.org.br")
+                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.dp)
                 .build();
 
-        when(usuarioRepository.findByEmail("admin@sobei.org.br")).thenReturn(Optional.of(adminUser));
+        when(usuarioRepository.findByEmail("dp@sobei.org.br")).thenReturn(Optional.of(adminUser));
 
         assertThrows(IllegalArgumentException.class, () -> {
             denunciaAdminService.deletarDenunciaFechada("XYZ-123-456", "admin@sobei.org.br");

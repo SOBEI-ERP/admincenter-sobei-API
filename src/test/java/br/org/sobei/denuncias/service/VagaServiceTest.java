@@ -80,8 +80,8 @@ class VagaServiceTest {
     void testCriarVagaSemPermissaoDiretoraThrowsException() {
         Usuario admin = Usuario.builder()
                 .id(1)
-                .email("admin@sobei.org.br")
-                .nivel(NivelAdmin.admin) // Não é diretora
+                .email("dp@sobei.org.br")
+                .nivel(NivelAdmin.dp) // Não é diretora
                 .unidade("Imbuias")
                 .build();
 

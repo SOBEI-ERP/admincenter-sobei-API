@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -21,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Gerenciamento de Denúncias (Admin)", description = "Endpoints administrativos para listagem, detalhamento e fechamento de denúncias.")
 @SecurityRequirement(name = "BearerAuth")
+@PreAuthorize("hasAnyRole('DP', 'SUPORTE')")
 public class DenunciaAdminController {
 
     private final DenunciaAdminService denunciaAdminService;
