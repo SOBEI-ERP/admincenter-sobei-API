@@ -129,7 +129,7 @@ class DenunciaAdminServiceTest {
         when(usuarioRepository.findByEmail("dp@sobei.org.br")).thenReturn(Optional.of(adminUser));
 
         assertThrows(IllegalArgumentException.class, () -> {
-            denunciaAdminService.deletarDenunciaFechada("XYZ-123-456", "admin@sobei.org.br");
+            denunciaAdminService.deletarDenunciaFechada("XYZ-123-456", "dp@sobei.org.br");
         });
     }
 

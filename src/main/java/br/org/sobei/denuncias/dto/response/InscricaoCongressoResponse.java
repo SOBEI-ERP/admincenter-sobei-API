@@ -25,6 +25,8 @@ public class InscricaoCongressoResponse {
     private LocalDateTime dataPresencaDia11;
     private Boolean presenteDia12;
     private LocalDateTime dataPresencaDia12;
+    private String oficinaManha;
+    private String oficinaTarde;
     private LocalDateTime dataInscricao;
     private LocalDateTime dataPresenca;
 }

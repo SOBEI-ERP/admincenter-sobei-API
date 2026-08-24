@@ -78,4 +78,51 @@ public class InscricaoCongressoAdminController {
                 .headers(headers)
                 .body(pdfBytes);
     }
+
+    @Operation(summary = "Definir ou atualizar oficinas do inscrito", description = "Permite à Coordenadora da unidade ou à administração definir as oficinas (Manhã e Tarde) do participante.")
+    @PatchMapping("/{id}/oficinas")
+    public ResponseEntity<InscricaoCongressoResponse> atualizarOficinas(
+            @PathVariable Integer id,
+            @jakarta.validation.Valid @RequestBody br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest request,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(inscricaoService.atualizarOficinas(id, request, principal.getName()));
+    }
+
+    @Operation(summary = "Visualizar ou baixar crachá individual em PDF", description = "Gera o crachá individual oficial do participante com unidade, nome e oficinas.")
+    @GetMapping(value = "/{id}/cracha", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> baixarCracha(
+            @PathVariable Integer id,
+            Principal principal
+    ) {
+        byte[] pdfBytes = inscricaoService.gerarCrachaPdf(id, principal.getName());
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.inline()
+                .filename("Cracha_Congresso_SOBEI_2026.pdf")
+                .build());
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
+    @Operation(summary = "Visualizar ou baixar grade de crachás em lote (PDF 3x4)", description = "Gera folha(s) de crachás padronizados em grade 3x4 (12 por folha) com linhas de corte para impressão.")
+    @GetMapping(value = "/crachas-lote", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> baixarCrachasLote(
+            Principal principal,
+            @Parameter(description = "Busca por Nome ou CPF") @RequestParam(required = false) String termo,
+            @Parameter(description = "Filtrar por Unidade") @RequestParam(required = false) String unidade,
+            @Parameter(description = "Filtrar por tipo de OSC (SOBEI ou OUTRA)") @RequestParam(required = false) String tipoOsc,
+            @Parameter(description = "Filtrar por presença confirmada (true/false)") @RequestParam(required = false) Boolean presente
+    ) {
+        byte[] pdfBytes = inscricaoService.gerarCrachasLotePdf(principal.getName(), termo, unidade, tipoOsc, presente);
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.inline()
+                .filename("Crachas_Congresso_SOBEI_2026_Lote.pdf")
+                .build());
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
 }

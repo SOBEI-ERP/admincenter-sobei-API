@@ -1,5 +1,6 @@
 package br.org.sobei.denuncias.service;
 
+import br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest;
 import br.org.sobei.denuncias.dto.request.CriarInscricaoCongressoRequest;
 import br.org.sobei.denuncias.dto.response.InscricaoCongressoResponse;
 import br.org.sobei.denuncias.model.entity.InscricaoCongresso;
@@ -22,6 +23,7 @@ public class InscricaoCongressoService {
     private final InscricaoCongressoRepository inscricaoRepository;
     private final UsuarioRepository usuarioRepository;
     private final CertificadoCongressoService certificadoService;
+    private final CrachaCongressoService crachaService;
     private final EmailService emailService;
 
     // ---- PÚBLICO ----
@@ -205,6 +207,43 @@ public class InscricaoCongressoService {
         return toResponse(salva);
     }
 
+    @Transactional
+    public InscricaoCongressoResponse atualizarOficinas(Integer id, AtualizarOficinasRequest request, String adminEmail) {
+        InscricaoCongresso inscricao = buscarInscricaoAutorizada(id, adminEmail);
+
+        if (request.getOficinaManha() != null) {
+            inscricao.setOficinaManha(request.getOficinaManha().trim().isBlank() ? null : request.getOficinaManha().trim());
+        }
+        if (request.getOficinaTarde() != null) {
+            inscricao.setOficinaTarde(request.getOficinaTarde().trim().isBlank() ? null : request.getOficinaTarde().trim());
+        }
+
+        InscricaoCongresso salva = inscricaoRepository.save(inscricao);
+        return toResponse(salva);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] gerarCrachaPdf(Integer id, String adminEmail) {
+        InscricaoCongresso inscricao = buscarInscricaoAutorizada(id, adminEmail);
+        return crachaService.gerarCrachaIndividual(inscricao);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] gerarCrachasLotePdf(String adminEmail, String termo, String unidade, String tipoOsc, Boolean presente) {
+        List<InscricaoCongressoResponse> listaFiltrada = listar(adminEmail, termo, unidade, tipoOsc, presente);
+        if (listaFiltrada.isEmpty()) {
+            throw new IllegalArgumentException("Nenhum inscrito encontrado com os filtros selecionados.");
+        }
+
+        List<Integer> ids = listaFiltrada.stream().map(InscricaoCongressoResponse::getId).collect(Collectors.toList());
+        List<InscricaoCongresso> inscricoes = inscricaoRepository.findAllById(ids);
+
+        // Manter a ordenação alfabética
+        inscricoes.sort((a, b) -> a.getNomeCompleto().compareToIgnoreCase(b.getNomeCompleto()));
+
+        return crachaService.gerarGradeCrachas(inscricoes);
+    }
+
     @Transactional(readOnly = true)
     public byte[] gerarCertificadoPdf(Integer id, String adminEmail) {
         InscricaoCongresso inscricao = buscarInscricaoAutorizada(id, adminEmail);
@@ -255,6 +294,8 @@ public class InscricaoCongressoService {
                 .dataPresencaDia11(i.getDataPresencaDia11())
                 .presenteDia12(i.getPresenteDia12())
                 .dataPresencaDia12(i.getDataPresencaDia12())
+                .oficinaManha(i.getOficinaManha())
+                .oficinaTarde(i.getOficinaTarde())
                 .dataInscricao(i.getDataInscricao())
                 .dataPresenca(i.getDataPresenca())
                 .build();

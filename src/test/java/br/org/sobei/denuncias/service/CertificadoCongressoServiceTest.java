@@ -44,20 +44,31 @@ class CertificadoCongressoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve formatar CPF sem máscara automaticamente")
-    void deveFormatarCpfSemMascara() {
-        InscricaoCongresso inscricao = InscricaoCongresso.builder()
-                .id(2)
-                .nomeCompleto("JOÃO PEDRO SANTOS")
-                .cpf("98765432100")
-                .email("joao.pedro@exemplo.com")
-                .tipoOsc("OUTRA")
-                .outraOsc("INSTITUTO EDUCAR")
-                .build();
+    @DisplayName("Deve formatar CPF sem máscara automaticamente e salvar amostras de teste")
+    void deveFormatarCpfSemMascara() throws Exception {
+        String[] nomes = {
+            "ANA SILVA",
+            "JOSÉ ANTONIO ALVES PEREIRA",
+            "MARIA DE LOURDES APARECIDA DA SILVA NASCIMENTO"
+        };
 
-        byte[] pdfBytes = certificadoService.gerarCertificadoPdf(inscricao);
+        for (int i = 0; i < nomes.length; i++) {
+            InscricaoCongresso inscricao = InscricaoCongresso.builder()
+                    .id(i + 1)
+                    .nomeCompleto(nomes[i])
+                    .cpf("9876543210" + i)
+                    .email("teste" + i + "@exemplo.com")
+                    .tipoOsc("SOBEI")
+                    .unidade("CEI MATRIZ")
+                    .build();
 
-        assertNotNull(pdfBytes);
-        assertTrue(pdfBytes.length > 1000);
+            byte[] pdfBytes = certificadoService.gerarCertificadoPdf(inscricao);
+            assertNotNull(pdfBytes);
+            assertTrue(pdfBytes.length > 1000);
+
+            try (FileOutputStream fos = new FileOutputStream("c:/Users/josea/.gemini/antigravity-ide/brain/ed740540-6fb5-4f21-9ba1-5543948b649f/scratch/cert_sample_" + i + ".pdf")) {
+                fos.write(pdfBytes);
+            }
+        }
     }
 }

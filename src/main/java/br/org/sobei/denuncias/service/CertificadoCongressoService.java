@@ -1,6 +1,7 @@
 package br.org.sobei.denuncias.service;
 
 import br.org.sobei.denuncias.model.entity.InscricaoCongresso;
+import com.lowagie.text.Chunk;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
 import com.lowagie.text.Phrase;
@@ -41,7 +42,8 @@ public class CertificadoCongressoService {
 
     /**
      * Gera o certificado do participante em formato PDF,
-     * usando o template oficial como base e substituindo os placeholders XXX.
+     * limpando o bloco de texto antigo do template e redesenhando
+     * todas as linhas de forma perfeitamente padronizada, uniforme e alinhada.
      *
      * @param inscricao Dados da inscrição do participante
      * @return byte[] contendo o arquivo PDF gerado
@@ -67,35 +69,65 @@ public class CertificadoCongressoService {
                     : "PARTICIPANTE";
             String cpfFormatado = formatarCpf(inscricao.getCpf());
 
-            // 4. Fonte para sobreposição (Bold para nome/CPF, mesma cor preta do original)
+            // 4. Cobrir toda a área de texto anterior com a cor de fundo oficial (#FFF4BC)
+            over.saveState();
+            over.setColorFill(COR_FUNDO);
+            // Cobre de x=15 até x=268, y=41 até y=120 (todo o miolo de texto variável)
+            over.rectangle(15f, 41f, 253f, 79f);
+            over.fill();
+            over.restoreState();
+
+            // 5. Configurar Fontes
+            BaseFont bfRegular = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
             BaseFont bfBold = BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
-            Font fontBold = new Font(bfBold, FONT_SIZE, Font.BOLD, Color.BLACK);
+            BaseFont bfItalic = BaseFont.createFont(BaseFont.HELVETICA_OBLIQUE, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
+            BaseFont bfBoldItalic = BaseFont.createFont(BaseFont.HELVETICA_BOLDOBLIQUE, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
 
-            // 5. Cobrir o placeholder do NOME com retângulo na cor de fundo
-            over.saveState();
-            over.setColorFill(COR_FUNDO);
-            over.rectangle(NOME_X - 0.5f, NOME_Y - COVER_DESCENT, NOME_LARGURA + 1.0f, COVER_HEIGHT);
-            over.fill();
-            over.restoreState();
+            Font fontReg55 = new Font(bfRegular, 5.5f, Font.NORMAL, Color.BLACK);
+            Font fontBold55 = new Font(bfBold, 5.5f, Font.BOLD, Color.BLACK);
+            Font fontTitle = new Font(bfBold, 7.0f, Font.BOLD, Color.BLACK);
+            Font fontTheme = new Font(bfBoldItalic, 6.5f, Font.BOLD | Font.ITALIC, new Color(30, 30, 30));
+            Font fontFooterReg = new Font(bfRegular, 5.2f, Font.NORMAL, new Color(40, 40, 40));
+            Font fontDate = new Font(bfRegular, 5.0f, Font.NORMAL, new Color(60, 60, 60));
 
-            // 6. Escrever o nome do participante centralizado na área do placeholder
-            float nomeCenterX = NOME_X + (NOME_LARGURA / 2.0f);
+            final float centerX = 141.5f; // Centro horizontal da página (283 / 2)
+
+            // 6. Linha 1: "A SOBEI - Sociedade Beneficente Equilíbrio de Interlagos, confere a"
+            Phrase pLinha1 = new Phrase();
+            pLinha1.add(new Chunk("A ", fontReg55));
+            pLinha1.add(new Chunk("SOBEI - Sociedade Beneficente Equilíbrio de Interlagos", fontBold55));
+            pLinha1.add(new Chunk(", confere a", fontReg55));
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, pLinha1, centerX, 114.5f, 0);
+
+            // 7. Linha 2: Nome do Participante em Destaque (com ajuste dinâmico de fonte para caber perfeitamente)
+            float nomeFontSize = calcularFontSizeNome(bfBold, nome, 240f, 6.8f, 4.8f);
+            Font fontNome = new Font(bfBold, nomeFontSize, Font.BOLD, Color.BLACK);
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, new Phrase(nome, fontNome), centerX, 106.2f, 0);
+
+            // 8. Linha 3: "CPF Nº XXX.XXX.XXX-XX, o presente certificado pela participação no"
+            Phrase pLinha3 = new Phrase();
+            pLinha3.add(new Chunk("CPF Nº ", fontReg55));
+            pLinha3.add(new Chunk(cpfFormatado, fontBold55));
+            pLinha3.add(new Chunk(", o presente certificado pela participação no", fontReg55));
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, pLinha3, centerX, 97.8f, 0);
+
+            // 9. Linha 4: Nome do Congresso em Negrito
             ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
-                    new Phrase(nome, fontBold), nomeCenterX, NOME_Y, 0);
+                    new Phrase("XX Congresso de Educação Infantil SOBEI 2026", fontTitle), centerX, 86.5f, 0);
 
-            // 7. Cobrir o placeholder do CPF com retângulo na cor de fundo
-            over.saveState();
-            over.setColorFill(COR_FUNDO);
-            over.rectangle(CPF_X - 0.5f, CPF_Y - COVER_DESCENT, CPF_LARGURA + 1.0f, COVER_HEIGHT);
-            over.fill();
-            over.restoreState();
-
-            // 8. Escrever o CPF centralizado na área do placeholder
-            float cpfCenterX = CPF_X + (CPF_LARGURA / 2.0f);
+            // 10. Linha 5: Tema do Congresso
             ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
-                    new Phrase(cpfFormatado, fontBold), cpfCenterX, CPF_Y, 0);
+                    new Phrase("“Cuidar, acolher e incluir. Construindo vínculos na primeiríssima infância”", fontTheme), centerX, 76.5f, 0);
 
-            // 9. Fechar e retornar
+            // 11. Linha 6: Carga Horária e Dias
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
+                    new Phrase("Realizado nos dias 11 e 12/09/2026, com carga horária de 14 (quatorze) horas.", fontFooterReg), centerX, 58.5f, 0);
+
+            // 12. Linha 7: Data de Emissão / Local
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
+                    new Phrase("São Paulo, 12 de setembro de 2026.", fontDate), centerX, 48.0f, 0);
+
+            // 13. Fechar e retornar
             stamper.close();
             reader.close();
 
@@ -104,6 +136,19 @@ public class CertificadoCongressoService {
             log.error("Erro ao gerar certificado PDF para inscrito ID {}: {}", inscricao.getId(), e.getMessage(), e);
             throw new RuntimeException("Erro ao gerar certificado em PDF: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Calcula o tamanho ideal da fonte para o nome caber na largura disponível sem truncar.
+     */
+    private float calcularFontSizeNome(BaseFont bf, String text, float maxLargura, float maxFontSize, float minFontSize) {
+        for (float size = maxFontSize; size >= minFontSize; size -= 0.2f) {
+            float width = bf.getWidthPoint(text, size);
+            if (width <= maxLargura) {
+                return size;
+            }
+        }
+        return minFontSize;
     }
 
     /**
