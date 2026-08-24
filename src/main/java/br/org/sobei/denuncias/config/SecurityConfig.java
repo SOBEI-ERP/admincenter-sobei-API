@@ -67,6 +67,7 @@ public class SecurityConfig {
         patterns.add("http://127.0.0.1:*");
         patterns.add("https://*.sobei.org.br");
         patterns.add("https://sobei.org.br");
+        patterns.add("https://*.vercel.app");
 
         configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
