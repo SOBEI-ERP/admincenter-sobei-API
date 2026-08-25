@@ -8,6 +8,7 @@ import br.org.sobei.denuncias.model.entity.Usuario;
 import br.org.sobei.denuncias.model.enums.NivelAdmin;
 import br.org.sobei.denuncias.repository.InscricaoCongressoRepository;
 import br.org.sobei.denuncias.repository.UsuarioRepository;
+import br.org.sobei.denuncias.util.CpfValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,18 +51,13 @@ public class InscricaoCongressoService {
             outraOscLimpa = request.getOutraOsc().trim();
         }
 
-        // Sanitização básica do CPF (somente números ou formato padrão)
-        String cpfLimpo = request.getCpf().replaceAll("[^0-9]", "");
-        if (cpfLimpo.length() != 11) {
-            throw new IllegalArgumentException("CPF inválido. O CPF deve conter 11 dígitos.");
+        // Validação rigorosa de CPF (Numérico ou Alfanumérico da Receita Federal)
+        if (!CpfValidator.isValido(request.getCpf())) {
+            throw new IllegalArgumentException("CPF inválido. Verifique os dígitos informados.");
         }
 
-        // Formata CPF como 000.000.000-00
-        String cpfFormatado = String.format("%s.%s.%s-%s",
-                cpfLimpo.substring(0, 3),
-                cpfLimpo.substring(3, 6),
-                cpfLimpo.substring(6, 9),
-                cpfLimpo.substring(9, 11));
+        String cpfLimpo = CpfValidator.desformatar(request.getCpf());
+        String cpfFormatado = CpfValidator.formatar(request.getCpf());
 
         if (inscricaoRepository.findByCpf(cpfFormatado).isPresent() || inscricaoRepository.findByCpf(cpfLimpo).isPresent()) {
             throw new IllegalArgumentException("Este CPF já está inscrito no Congresso.");
@@ -87,11 +83,15 @@ public class InscricaoCongressoService {
             throw new IllegalArgumentException("CPF e e-mail são obrigatórios para a consulta.");
         }
 
-        String cpfLimpo = cpf.trim();
-        String cpfSemMascara = cpfLimpo.replaceAll("\\D", "");
+        if (!CpfValidator.isValido(cpf)) {
+            throw new IllegalArgumentException("CPF inválido. Verifique os dígitos informados.");
+        }
+
+        String cpfLimpo = CpfValidator.desformatar(cpf);
+        String cpfFormatado = CpfValidator.formatar(cpf);
         String emailLimpo = email.trim().toLowerCase();
 
-        return inscricaoRepository.findByCpfAndEmail(cpfLimpo, cpfSemMascara, emailLimpo)
+        return inscricaoRepository.findByCpfAndEmail(cpfFormatado, cpfLimpo, emailLimpo)
                 .map(this::toResponse)
                 .orElseThrow(() -> new IllegalArgumentException("Nenhuma inscrição encontrada com o CPF e e-mail informados."));
     }

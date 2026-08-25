@@ -24,6 +24,7 @@ public class CrachaCongressoService {
     // Cores oficiais extraídas diretamente do modelo oficial crachas_padronizados.pdf
     private static final Color COR_AZUL_CABECALHO = new Color(46, 116, 181); // #2E74B5 (.1804 .4549 .7098)
     private static final Color COR_TEXTO_PRETO = new Color(0, 0, 0);         // #000000
+    private static final Color COR_PONTILHADO_CORTE = new Color(180, 180, 180); // Cinza suave para guia de recorte
 
     // Dimensões do crachá individual: formato retangular horizontal padrão (9.8cm x 5.6cm)
     private static final float SINGLE_WIDTH = 280f;
@@ -196,6 +197,15 @@ public class CrachaCongressoService {
     private void desenharCrachaGrade(PdfContentByte cb, BaseFont bfRegular, BaseFont bfBold,
                                      InscricaoCongresso inscricao, float x, float y,
                                      float w, float h) {
+
+        // 0. Guia pontilhada para recorte dos crachás na folha
+        cb.saveState();
+        cb.setColorStroke(COR_PONTILHADO_CORTE);
+        cb.setLineWidth(0.65f);
+        cb.setLineDash(3.5f, 3.5f);
+        cb.rectangle(x, y, w, h);
+        cb.stroke();
+        cb.restoreState();
 
         // 1. Determinar texto da Unidade / OSC
         String unidadeTexto = obterTextoUnidade(inscricao);

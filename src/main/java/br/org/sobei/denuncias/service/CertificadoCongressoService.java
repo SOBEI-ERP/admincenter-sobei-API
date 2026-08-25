@@ -40,10 +40,14 @@ public class CertificadoCongressoService {
     // Offset abaixo da baseline para cobrir descendentes
     private static final float COVER_DESCENT = 1.5f;
 
+    private static final String ASSINATURA_SATIE_PATH = "templates/assinatura-satie.png";
+    private static final String ASSINATURA_BALDO_PATH = "templates/assinatura-baldo.png";
+
     /**
      * Gera o certificado do participante em formato PDF,
-     * limpando o bloco de texto antigo do template e redesenhando
-     * todas as linhas de forma perfeitamente padronizada, uniforme e alinhada.
+     * limpando o bloco de texto e assinaturas antigas do template
+     * e redesenhando todo o conteúdo com perfeito alinhamento,
+     * hierarquia visual e separação total sem nenhuma sobreposição.
      *
      * @param inscricao Dados da inscrição do participante
      * @return byte[] contendo o arquivo PDF gerado
@@ -69,11 +73,11 @@ public class CertificadoCongressoService {
                     : "PARTICIPANTE";
             String cpfFormatado = formatarCpf(inscricao.getCpf());
 
-            // 4. Cobrir toda a área de texto anterior com a cor de fundo oficial (#FFF4BC)
+            // 4. Cobrir toda a área de texto e assinaturas antigas com a cor de fundo oficial (#FFF4BC)
             over.saveState();
             over.setColorFill(COR_FUNDO);
-            // Cobre de x=15 até x=268, y=41 até y=120 (todo o miolo de texto variável)
-            over.rectangle(15f, 41f, 253f, 79f);
+            // Cobre de x=0 até x=283.5, y=0 até y=122 (toda a área abaixo do banner superior)
+            over.rectangle(0f, 0f, 283.5f, 122f);
             over.fill();
             over.restoreState();
 
@@ -81,43 +85,44 @@ public class CertificadoCongressoService {
             BaseFont bfRegular = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
             BaseFont bfBold = BaseFont.createFont(BaseFont.HELVETICA_BOLD, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
             BaseFont bfItalic = BaseFont.createFont(BaseFont.HELVETICA_OBLIQUE, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
-            BaseFont bfBoldItalic = BaseFont.createFont(BaseFont.HELVETICA_BOLDOBLIQUE, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
 
-            Font fontReg55 = new Font(bfRegular, 5.5f, Font.NORMAL, Color.BLACK);
-            Font fontBold55 = new Font(bfBold, 5.5f, Font.BOLD, Color.BLACK);
-            Font fontTitle = new Font(bfBold, 7.0f, Font.BOLD, Color.BLACK);
-            Font fontTheme = new Font(bfBoldItalic, 6.5f, Font.BOLD | Font.ITALIC, new Color(30, 30, 30));
-            Font fontFooterReg = new Font(bfRegular, 5.2f, Font.NORMAL, new Color(40, 40, 40));
-            Font fontDate = new Font(bfRegular, 5.0f, Font.NORMAL, new Color(60, 60, 60));
+            Font fontRegIntro = new Font(bfRegular, 5.6f, Font.NORMAL, Color.BLACK);
+            Font fontBoldIntro = new Font(bfBold, 5.6f, Font.BOLD, Color.BLACK);
+            Font fontTitle = new Font(bfRegular, 7.8f, Font.NORMAL, Color.BLACK);
+            Font fontTheme = new Font(bfItalic, 6.6f, Font.ITALIC, new Color(30, 30, 30));
+            Font fontFooterReg = new Font(bfRegular, 5.4f, Font.NORMAL, new Color(40, 40, 40));
+            Font fontDate = new Font(bfRegular, 5.2f, Font.NORMAL, new Color(60, 60, 60));
+            Font fontSigName = new Font(bfRegular, 5.2f, Font.NORMAL, Color.BLACK);
+            Font fontSigTitle = new Font(bfRegular, 4.6f, Font.NORMAL, new Color(50, 50, 50));
 
             final float centerX = 141.5f; // Centro horizontal da página (283 / 2)
 
-            // 6. Linha 1: "A SOBEI - Sociedade Beneficente Equilíbrio de Interlagos, confere a"
-            Phrase pLinha1 = new Phrase();
-            pLinha1.add(new Chunk("A ", fontReg55));
-            pLinha1.add(new Chunk("SOBEI - Sociedade Beneficente Equilíbrio de Interlagos", fontBold55));
-            pLinha1.add(new Chunk(", confere a", fontReg55));
-            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, pLinha1, centerX, 114.5f, 0);
+            // 6. Linha 1: "A SOBEI - Sociedade Beneficente Equilíbrio de Interlagos,"
+            Phrase pLinha1 = new Phrase("A SOBEI - Sociedade Beneficente Equilíbrio de Interlagos,", fontRegIntro);
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, pLinha1, centerX, 112.5f, 0);
 
-            // 7. Linha 2: Nome do Participante em Destaque (com ajuste dinâmico de fonte para caber perfeitamente)
-            float nomeFontSize = calcularFontSizeNome(bfBold, nome, 240f, 6.8f, 4.8f);
+            // 7. Linha 2: "confere a [NOME], CPF Nº [CPF]," (Nome e CPF em negrito, 'confere a' na mesma linha)
+            float nomeFontSize = calcularFontSizeNome(bfBold, nome, 150f, 5.6f, 4.2f);
             Font fontNome = new Font(bfBold, nomeFontSize, Font.BOLD, Color.BLACK);
-            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, new Phrase(nome, fontNome), centerX, 106.2f, 0);
+            Phrase pLinha2 = new Phrase();
+            pLinha2.add(new Chunk("confere a ", fontRegIntro));
+            pLinha2.add(new Chunk(nome, fontNome));
+            pLinha2.add(new Chunk(", CPF Nº ", fontRegIntro));
+            pLinha2.add(new Chunk(cpfFormatado, fontBoldIntro));
+            pLinha2.add(new Chunk(",", fontRegIntro));
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, pLinha2, centerX, 104.5f, 0);
 
-            // 8. Linha 3: "CPF Nº XXX.XXX.XXX-XX, o presente certificado pela participação no"
-            Phrase pLinha3 = new Phrase();
-            pLinha3.add(new Chunk("CPF Nº ", fontReg55));
-            pLinha3.add(new Chunk(cpfFormatado, fontBold55));
-            pLinha3.add(new Chunk(", o presente certificado pela participação no", fontReg55));
-            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, pLinha3, centerX, 97.8f, 0);
+            // 8. Linha 3: "o presente certificado pela participação no"
+            Phrase pLinha3 = new Phrase("o presente certificado pela participação no", fontRegIntro);
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER, pLinha3, centerX, 96.5f, 0);
 
-            // 9. Linha 4: Nome do Congresso em Negrito
+            // 9. Linha 4: Nome do Congresso
             ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
-                    new Phrase("XX Congresso de Educação Infantil SOBEI 2026", fontTitle), centerX, 86.5f, 0);
+                    new Phrase("XX Congresso de Educação Infantil SOBEI 2026", fontTitle), centerX, 84.0f, 0);
 
             // 10. Linha 5: Tema do Congresso
             ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
-                    new Phrase("“Cuidar, acolher e incluir. Construindo vínculos na primeiríssima infância”", fontTheme), centerX, 76.5f, 0);
+                    new Phrase("“Cuidar, acolher e incluir. Construindo vínculos na primeiríssima infância”", fontTheme), centerX, 73.5f, 0);
 
             // 11. Linha 6: Carga Horária e Dias
             ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
@@ -125,9 +130,43 @@ public class CertificadoCongressoService {
 
             // 12. Linha 7: Data de Emissão / Local
             ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
-                    new Phrase("São Paulo, 12 de setembro de 2026.", fontDate), centerX, 48.0f, 0);
+                    new Phrase("São Paulo, 12 de setembro de 2026.", fontDate), centerX, 49.5f, 0);
 
-            // 13. Fechar e retornar
+            // 13. Assinatura Satie Kochiko (Esquerda)
+            try {
+                ClassPathResource satieRes = new ClassPathResource(ASSINATURA_SATIE_PATH);
+                try (InputStream is = satieRes.getInputStream()) {
+                    com.lowagie.text.Image imgSatie = com.lowagie.text.Image.getInstance(is.readAllBytes());
+                    imgSatie.scaleAbsolute(32.0f, 15.7f);
+                    imgSatie.setAbsolutePosition(59.0f, 24.5f);
+                    over.addImage(imgSatie);
+                }
+            } catch (Exception ex) {
+                log.warn("Não foi possível carregar assinatura de Satie Kochiko: {}", ex.getMessage());
+            }
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
+                    new Phrase("Satie Kochiko", fontSigName), 75.0f, 17.0f, 0);
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
+                    new Phrase("Coordenadora", fontSigTitle), 75.0f, 11.0f, 0);
+
+            // 14. Assinatura Luiz Baldo Sobrinho (Direita)
+            try {
+                ClassPathResource baldoRes = new ClassPathResource(ASSINATURA_BALDO_PATH);
+                try (InputStream is = baldoRes.getInputStream()) {
+                    com.lowagie.text.Image imgBaldo = com.lowagie.text.Image.getInstance(is.readAllBytes());
+                    imgBaldo.scaleAbsolute(31.0f, 20.7f);
+                    imgBaldo.setAbsolutePosition(192.5f, 23.5f);
+                    over.addImage(imgBaldo);
+                }
+            } catch (Exception ex) {
+                log.warn("Não foi possível carregar assinatura de Luiz Baldo Sobrinho: {}", ex.getMessage());
+            }
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
+                    new Phrase("Luiz Baldo Sobrinho", fontSigName), 208.0f, 17.0f, 0);
+            ColumnText.showTextAligned(over, Element.ALIGN_CENTER,
+                    new Phrase("Presidente da SOBEI", fontSigTitle), 208.0f, 11.0f, 0);
+
+            // 15. Fechar e retornar
             stamper.close();
             reader.close();
 
