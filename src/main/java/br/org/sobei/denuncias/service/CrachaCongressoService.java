@@ -130,7 +130,7 @@ public class CrachaCongressoService {
         ColumnText ctNome = new ColumnText(cb);
         ctNome.setSimpleColumn(
                 x + 8f,
-                y + 42.0f,
+                y + 45.5f,
                 x + w - 8f,
                 headerY - 3.0f
         );
@@ -141,35 +141,37 @@ public class CrachaCongressoService {
             log.warn("Erro ao renderizar nome na grade de crachás: {}", e.getMessage());
         }
 
-        // 3. Unidade / OSC (Abaixo do Nome - Centralizado em Azul Oficial)
-        String unidadeTexto = obterTextoUnidade(inscricao);
-        float unidadeY = y + 27.0f;
-        cb.saveState();
-        cb.setColorFill(COR_AZUL_CABECALHO);
-        cb.setFontAndSize(bfBold, 9.8f);
-        float unidadeTextWidth = bfBold.getWidthPoint(unidadeTexto, 9.8f);
-        float unidadeX = x + (w - unidadeTextWidth) / 2.0f;
-        cb.beginText();
-        cb.setTextMatrix(unidadeX, unidadeY);
-        cb.showText(unidadeTexto);
-        cb.endText();
-
-        // Linha azul contínua de apoio abaixo da unidade
-        float lineY = unidadeY - 3.0f;
-        float lineWidth = Math.min(w - 50f, Math.max(unidadeTextWidth + 20f, 130f));
+        // 3. Barra azul divisória ENTRE o Nome e a Unidade/CEI
+        float lineY = y + 42.0f;
+        float lineWidth = Math.min(w - 40f, 160f);
         float lineX1 = x + (w - lineWidth) / 2.0f;
         float lineX2 = lineX1 + lineWidth;
+        cb.saveState();
         cb.setColorStroke(COR_AZUL_CABECALHO);
-        cb.setLineWidth(1.0f);
+        cb.setLineWidth(1.1f);
         cb.setLineDash(0);
         cb.moveTo(lineX1, lineY);
         cb.lineTo(lineX2, lineY);
         cb.stroke();
         cb.restoreState();
 
-        // 4. OFICINA (Aumentado e 100% Centralizado no Rodapé)
+        // 4. Unidade / CEI (Abaixo da Barra - Centralizado em Azul Oficial)
+        String unidadeTexto = obterTextoUnidade(inscricao);
+        float unidadeY = y + 27.0f;
+        cb.saveState();
+        cb.setColorFill(COR_AZUL_CABECALHO);
+        cb.setFontAndSize(bfBold, 10.0f);
+        float unidadeTextWidth = bfBold.getWidthPoint(unidadeTexto, 10.0f);
+        float unidadeX = x + (w - unidadeTextWidth) / 2.0f;
+        cb.beginText();
+        cb.setTextMatrix(unidadeX, unidadeY);
+        cb.showText(unidadeTexto);
+        cb.endText();
+        cb.restoreState();
+
+        // 5. OFICINA (Aumentado e 100% Centralizado no Rodapé)
         String oficinaTexto = obterTextoOficina(inscricao);
-        float oficinaY = y + 9.0f;
+        float oficinaY = y + 9.5f;
         float sheetOficinaFontSize = 10.5f;
         float sheetTotalWidth = w - 24f;
 
