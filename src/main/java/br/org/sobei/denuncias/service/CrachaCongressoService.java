@@ -104,20 +104,22 @@ public class CrachaCongressoService {
         cb.stroke();
         cb.restoreState();
 
-        // 1. Marca d'água oficial do Congresso no topo (XX CONGRESSO / DE EDUCAÇÃO INFANTIL SOBEI)
-        desenharMarcaDaguaCongresso(cb, bfBold, x, y, w, h);
+        // 1. Cabeçalho Oficial do Congresso no topo (Faixa azul com badge "XX CONGRESSO")
+        float headerHeight = 17.5f;
+        float headerY = y + h - headerHeight;
+        desenharCabecalhoCongresso(cb, bfBold, x, headerY, w, headerHeight);
 
         // 2. Nome Completo do Participante (Topo / Destaque Principal - Centralizado)
         String nome = (inscricao.getNomeCompleto() != null && !inscricao.getNomeCompleto().isBlank())
                 ? formatarNome(inscricao.getNomeCompleto())
                 : "Participante";
 
-        float nomeFontSize = 14.0f;
+        float nomeFontSize = 14.5f;
         if (nome.length() > 25) {
-            nomeFontSize = 12.0f;
+            nomeFontSize = 12.5f;
         }
         if (nome.length() > 36) {
-            nomeFontSize = 10.5f;
+            nomeFontSize = 11.0f;
         }
 
         Font fontNome = new Font(bfBold, nomeFontSize, Font.BOLD, COR_TEXTO_PRETO);
@@ -128,9 +130,9 @@ public class CrachaCongressoService {
         ColumnText ctNome = new ColumnText(cb);
         ctNome.setSimpleColumn(
                 x + 8f,
-                y + 40.0f,
+                y + 42.0f,
                 x + w - 8f,
-                y + h - 16.0f
+                headerY - 3.0f
         );
         ctNome.addElement(pNome);
         try {
@@ -141,11 +143,11 @@ public class CrachaCongressoService {
 
         // 3. Unidade / OSC (Abaixo do Nome - Centralizado em Azul Oficial)
         String unidadeTexto = obterTextoUnidade(inscricao);
-        float unidadeY = y + 25.5f;
+        float unidadeY = y + 27.0f;
         cb.saveState();
         cb.setColorFill(COR_AZUL_CABECALHO);
-        cb.setFontAndSize(bfBold, 9.5f);
-        float unidadeTextWidth = bfBold.getWidthPoint(unidadeTexto, 9.5f);
+        cb.setFontAndSize(bfBold, 9.8f);
+        float unidadeTextWidth = bfBold.getWidthPoint(unidadeTexto, 9.8f);
         float unidadeX = x + (w - unidadeTextWidth) / 2.0f;
         cb.beginText();
         cb.setTextMatrix(unidadeX, unidadeY);
@@ -167,7 +169,7 @@ public class CrachaCongressoService {
 
         // 4. OFICINA (Aumentado e 100% Centralizado no Rodapé)
         String oficinaTexto = obterTextoOficina(inscricao);
-        float oficinaY = y + 8.5f;
+        float oficinaY = y + 9.0f;
         float sheetOficinaFontSize = 10.5f;
         float sheetTotalWidth = w - 24f;
 
@@ -176,58 +178,51 @@ public class CrachaCongressoService {
     }
 
     /**
-     * Desenha a marca d'água oficial estilizada do Congresso no topo da etiqueta.
+     * Desenha a faixa azul com o badge oficial "XX CONGRESSO" no estilo da foto.
      */
-    private void desenharMarcaDaguaCongresso(PdfContentByte cb, BaseFont bfBold, float x, float y, float w, float h) {
+    private void desenharCabecalhoCongresso(PdfContentByte cb, BaseFont bfBold, float x, float y, float w, float h) {
         cb.saveState();
-        Color corMarca = new Color(130, 140, 175); // Tom suave elegante de marca d'água
-        cb.setColorStroke(corMarca);
-        cb.setColorFill(corMarca);
 
-        float topY = y + h - 3.5f;
+        // 1. Fundo azul sólido no topo da etiqueta
+        cb.setColorFill(COR_AZUL_CABECALHO);
+        cb.rectangle(x, y, w, h);
+        cb.fill();
 
-        // 1. Moldura retangular: "XX | CONGRESSO"
+        // 2. Moldura externa branca do badge: "XX | CONGRESSO"
         float boxWidth = 145f;
-        float boxHeight = 8.5f;
+        float boxHeight = 11.5f;
         float boxX = x + (w - boxWidth) / 2.0f;
-        float boxY = topY - boxHeight;
+        float boxY = y + (h - boxHeight) / 2.0f;
 
-        cb.setLineWidth(0.6f);
+        cb.setColorStroke(Color.WHITE);
+        cb.setLineWidth(1.0f);
         cb.setLineDash(0);
         cb.rectangle(boxX, boxY, boxWidth, boxHeight);
         cb.stroke();
 
-        // Divisória vertical separando o "XX" de "CONGRESSO"
-        float xxWidth = 24f;
-        cb.moveTo(boxX + xxWidth, boxY);
-        cb.lineTo(boxX + xxWidth, boxY + boxHeight);
-        cb.stroke();
+        // 3. Bloco esquerdo preenchido de branco para o "XX"
+        float xxWidth = 27f;
+        cb.setColorFill(Color.WHITE);
+        cb.rectangle(boxX, boxY, xxWidth, boxHeight);
+        cb.fill();
 
-        // Texto "XX"
-        cb.setFontAndSize(bfBold, 7.2f);
-        float xxTextWidth = bfBold.getWidthPoint("XX", 7.2f);
+        // 4. Texto "XX" em azul dentro do bloco branco
+        cb.setColorFill(COR_AZUL_CABECALHO);
+        cb.setFontAndSize(bfBold, 8.5f);
+        float xxTextWidth = bfBold.getWidthPoint("XX", 8.5f);
         cb.beginText();
-        cb.setTextMatrix(boxX + (xxWidth - xxTextWidth) / 2.0f, boxY + 2.0f);
+        cb.setTextMatrix(boxX + (xxWidth - xxTextWidth) / 2.0f, boxY + 2.5f);
         cb.showText("XX");
         cb.endText();
 
-        // Texto "CONGRESSO"
-        cb.setFontAndSize(bfBold, 6.8f);
-        float congressoTextWidth = bfBold.getWidthPoint("CONGRESSO", 6.8f);
+        // 5. Texto "CONGRESSO" em branco sobre o fundo azul
+        cb.setColorFill(Color.WHITE);
+        cb.setFontAndSize(bfBold, 8.2f);
+        float congressoWidth = bfBold.getWidthPoint("CONGRESSO", 8.2f);
         float congressoAvailable = boxWidth - xxWidth;
         cb.beginText();
-        cb.setTextMatrix(boxX + xxWidth + (congressoAvailable - congressoTextWidth) / 2.0f, boxY + 2.0f);
+        cb.setTextMatrix(boxX + xxWidth + (congressoAvailable - congressoWidth) / 2.0f, boxY + 2.5f);
         cb.showText("CONGRESSO");
-        cb.endText();
-
-        // 2. Subtítulo: "DE EDUCAÇÃO INFANTIL SOBEI"
-        String subtitulo = "DE EDUCAÇÃO INFANTIL SOBEI";
-        float subFontSize = 4.8f;
-        cb.setFontAndSize(bfBold, subFontSize);
-        float subWidth = bfBold.getWidthPoint(subtitulo, subFontSize);
-        cb.beginText();
-        cb.setTextMatrix(x + (w - subWidth) / 2.0f, boxY - 4.5f);
-        cb.showText(subtitulo);
         cb.endText();
 
         cb.restoreState();
