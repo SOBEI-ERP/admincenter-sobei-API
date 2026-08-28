@@ -45,17 +45,17 @@ class CrachaCongressoServiceTest {
     @Test
     void testGerarGradeCrachasLoteComSucesso() {
         List<InscricaoCongresso> lista = new ArrayList<>();
-        for (int i = 1; i <= 15; i++) {
+        // 50 participantes para simular 1 unidade escolar completa (gerando 4 páginas de 14 etiquetas)
+        for (int i = 1; i <= 50; i++) {
             lista.add(InscricaoCongresso.builder()
                     .id(i)
-                    .nomeCompleto("Participante " + i + " da Silva")
-                    .cpf("111.222.333-44")
+                    .nomeCompleto("Participante " + i + " da Silva Santos")
+                    .cpf("111.222.333-" + String.format("%02d", i % 100))
                     .email("participante" + i + "@sobei.org.br")
-                    .tipoOsc(i % 2 == 0 ? "SOBEI" : "OUTRA")
-                    .unidade(i % 2 == 0 ? "Montanaro" : null)
-                    .outraOsc(i % 2 != 0 ? "Instituto Criar" : null)
-                    .oficinaManha("Angelina")
-                    .oficinaTarde("Fabiola")
+                    .tipoOsc("SOBEI")
+                    .unidade("Montanaro")
+                    .oficinaManha("Fernanda Polezein")
+                    .oficinaTarde("Fabiola Cordeiro")
                     .build());
         }
 

@@ -30,18 +30,20 @@ public class CrachaCongressoService {
     private static final float SINGLE_WIDTH = 280f;
     private static final float SINGLE_HEIGHT = 160f;
 
-    // Dimensões da folha Letter (612 x 792 pt) e grade 3x4 (12 crachás retangulares por folha)
-    private static final float PAGE_WIDTH = 612f;
-    private static final float PAGE_HEIGHT = 792f;
-    private static final int COLS = 3;
-    private static final int ROWS = 4;
-    private static final int CRACHAS_POR_PAGINA = COLS * ROWS;
+    // Dimensões da folha A4 (595.28 x 841.89 pt) e grade de 14 etiquetas Tilibra TB182 (2 colunas x 7 linhas - 101.6 x 33.9 mm)
+    private static final float PAGE_WIDTH = 595.28f;
+    private static final float PAGE_HEIGHT = 841.89f;
+    private static final int COLS = 2;
+    private static final int ROWS = 7;
+    private static final int CRACHAS_POR_PAGINA = COLS * ROWS; // 14 etiquetas por folha
 
-    private static final float SHEET_CARD_WIDTH = 180f;
-    private static final float SHEET_CARD_HEIGHT = 118f;
-    private static final float MARGIN_X = (PAGE_WIDTH - (COLS * SHEET_CARD_WIDTH)) / 2.0f; // 36 pt
-    private static final float MARGIN_TOP = 40f;
-    private static final float GAP_Y = (PAGE_HEIGHT - (2 * MARGIN_TOP) - (ROWS * SHEET_CARD_HEIGHT)) / (ROWS - 1); // ~46.6 pt
+    // Gabarito oficial Tilibra TB182: 101,6 mm de largura x 33,9 mm de altura (288.0 pt x 96.1 pt)
+    private static final float SHEET_CARD_WIDTH = 288.0f;  // 101.6 mm
+    private static final float SHEET_CARD_HEIGHT = 96.1f;  // 33.9 mm
+    private static final float MARGIN_X = (PAGE_WIDTH - (COLS * SHEET_CARD_WIDTH)) / 2.0f;   // 9.64 pt (~3.4 mm de margem lateral)
+    private static final float MARGIN_TOP = 60.25f; // ~25.85 mm (deslocado 4 mm para cima a pedido do usuário)
+    private static final float GAP_X = 0f;
+    private static final float GAP_Y = 0f;
 
     /**
      * Gera o PDF de um único crachá individual em formato retangular padrão idêntico ao modelo oficial.
@@ -145,12 +147,12 @@ public class CrachaCongressoService {
                 ? formatarNome(inscricao.getNomeCompleto())
                 : "Participante";
 
-        float nomeFontSize = 16.0f;
+        float nomeFontSize = 17.0f;
         if (nome.length() > 25) {
-            nomeFontSize = 13.5f;
+            nomeFontSize = 14.0f;
         }
         if (nome.length() > 36) {
-            nomeFontSize = 11.5f;
+            nomeFontSize = 12.0f;
         }
 
         Font fontNome = new Font(bfBold, nomeFontSize, Font.BOLD, COR_TEXTO_PRETO);
@@ -161,9 +163,9 @@ public class CrachaCongressoService {
         ColumnText ctNome = new ColumnText(cb);
         ctNome.setSimpleColumn(
                 14f,
-                54f,
+                38f,
                 w - 14f,
-                lineY - 6f
+                lineY - 8f
         );
         ctNome.addElement(pNome);
         try {
@@ -172,37 +174,30 @@ public class CrachaCongressoService {
             log.warn("Erro ao renderizar nome no crachá individual: {}", e.getMessage());
         }
 
-        // 4. Oficinas (Manhã e Tarde) na parte inferior
-        String oficinaManha = (inscricao.getOficinaManha() != null && !inscricao.getOficinaManha().isBlank())
-                ? inscricao.getOficinaManha().trim()
-                : "A Definir";
-
-        String oficinaTarde = (inscricao.getOficinaTarde() != null && !inscricao.getOficinaTarde().isBlank())
-                ? inscricao.getOficinaTarde().trim()
-                : "A Definir";
+        // 4. Oficina na parte inferior (linha única)
+        String oficinaTexto = obterTextoOficina(inscricao);
 
         float paddingLeft = 18f;
-        float manhaY = 32f;
-        float tardeY = 15f;
-        float oficinaFontSize = 10.5f;
+        float oficinaY = 18f;
+        float oficinaFontSize = 11.0f;
         float totalWidth = w - paddingLeft - 14f;
 
-        desenharLinhasOficinas(cb, bfRegular, bfBold, oficinaManha, oficinaTarde,
-                paddingLeft, manhaY, tardeY, totalWidth, oficinaFontSize, 7.5f);
+        desenharLinhaOficina(cb, bfRegular, bfBold, oficinaTexto,
+                paddingLeft, oficinaY, totalWidth, oficinaFontSize, 8.0f);
     }
 
     /**
-     * Renderiza um crachá dentro da folha de impressão em grade 3x4 (180 x 118 pt).
+     * Renderiza um crachá dentro da folha de impressão em grade de 14 etiquetas Tilibra (288 x 108 pt).
      */
     private void desenharCrachaGrade(PdfContentByte cb, BaseFont bfRegular, BaseFont bfBold,
                                      InscricaoCongresso inscricao, float x, float y,
                                      float w, float h) {
 
-        // 0. Guia pontilhada para recorte dos crachás na folha
+        // 0. Guia pontilhada suave para recorte/destaque na folha de etiquetas
         cb.saveState();
         cb.setColorStroke(COR_PONTILHADO_CORTE);
-        cb.setLineWidth(0.65f);
-        cb.setLineDash(3.5f, 3.5f);
+        cb.setLineWidth(0.5f);
+        cb.setLineDash(3.0f, 3.0f);
         cb.rectangle(x, y, w, h);
         cb.stroke();
         cb.restoreState();
@@ -211,7 +206,7 @@ public class CrachaCongressoService {
         String unidadeTexto = obterTextoUnidade(inscricao);
 
         // 2. Cabeçalho da Unidade (Azul #2E74B5, centralizado)
-        float headerY = y + h - 19f;
+        float headerY = y + h - 14.5f;
         cb.saveState();
         cb.setColorFill(COR_AZUL_CABECALHO);
         cb.setFontAndSize(bfBold, 9.5f);
@@ -222,9 +217,9 @@ public class CrachaCongressoService {
         cb.showText(unidadeTexto);
         cb.endText();
 
-        // Linha azul abaixo do cabeçalho
-        float lineY = headerY - 4f;
-        float lineWidth = Math.min(w - 24f, 140f);
+        // Linha azul contínua abaixo do cabeçalho
+        float lineY = headerY - 3.0f;
+        float lineWidth = Math.min(w - 30f, 180f);
         float lineX1 = x + (w - lineWidth) / 2.0f;
         float lineX2 = lineX1 + lineWidth;
         cb.setColorStroke(COR_AZUL_CABECALHO);
@@ -235,17 +230,17 @@ public class CrachaCongressoService {
         cb.stroke();
         cb.restoreState();
 
-        // 3. Nome Completo do Participante (Centro do crachá)
+        // 3. Nome Completo do Participante (Centro da etiqueta, perfeitamente equilibrado)
         String nome = (inscricao.getNomeCompleto() != null && !inscricao.getNomeCompleto().isBlank())
                 ? formatarNome(inscricao.getNomeCompleto())
                 : "Participante";
 
-        float nomeFontSize = 12.0f;
+        float nomeFontSize = 13.0f;
         if (nome.length() > 25) {
-            nomeFontSize = 10.5f;
+            nomeFontSize = 11.0f;
         }
         if (nome.length() > 36) {
-            nomeFontSize = 9.0f;
+            nomeFontSize = 9.5f;
         }
 
         Font fontNome = new Font(bfBold, nomeFontSize, Font.BOLD, COR_TEXTO_PRETO);
@@ -255,10 +250,10 @@ public class CrachaCongressoService {
 
         ColumnText ctNome = new ColumnText(cb);
         ctNome.setSimpleColumn(
-                x + 8f,
-                y + 36f,
-                x + w - 8f,
-                lineY - 4f
+                x + 10f,
+                y + 17.5f,
+                x + w - 10f,
+                lineY - 2.5f
         );
         ctNome.addElement(pNome);
         try {
@@ -267,73 +262,70 @@ public class CrachaCongressoService {
             log.warn("Erro ao renderizar nome na grade de crachás: {}", e.getMessage());
         }
 
-        // 4. Oficinas (Manhã e Tarde) na parte inferior
-        String oficinaManha = (inscricao.getOficinaManha() != null && !inscricao.getOficinaManha().isBlank())
-                ? inscricao.getOficinaManha().trim()
-                : "A Definir";
+        // 4. Oficina na parte inferior da etiqueta (linha única)
+        String oficinaTexto = obterTextoOficina(inscricao);
 
-        String oficinaTarde = (inscricao.getOficinaTarde() != null && !inscricao.getOficinaTarde().isBlank())
-                ? inscricao.getOficinaTarde().trim()
-                : "A Definir";
-
-        float paddingLeft = 10f;
-        float manhaY = y + 21f;
-        float tardeY = y + 9f;
-        float sheetOficinaFontSize = 8.0f;
+        float paddingLeft = 14f;
+        float oficinaY = y + 7.5f;
+        float sheetOficinaFontSize = 8.5f;
         float sheetTotalWidth = w - (2 * paddingLeft);
 
-        desenharLinhasOficinas(cb, bfRegular, bfBold, oficinaManha, oficinaTarde,
-                x + paddingLeft, manhaY, tardeY, sheetTotalWidth, sheetOficinaFontSize, 6.0f);
+        desenharLinhaOficina(cb, bfRegular, bfBold, oficinaTexto,
+                x + paddingLeft, oficinaY, sheetTotalWidth, sheetOficinaFontSize, 6.5f);
     }
 
     /**
-     * Renderiza as linhas de oficinas (MANHÃ e TARDE) com alinhamento perfeito dos rótulos
-     * e ajuste proporcional dinâmico do tamanho da fonte para não cortar títulos longos.
+     * Renderiza uma única linha de oficina ("OFICINA: ...") com rótulo em negrito
+     * e texto ajustado proporcionalmente para não cortar.
      */
-    private void desenharLinhasOficinas(PdfContentByte cb, BaseFont bfRegular, BaseFont bfBold,
-                                        String oficinaManha, String oficinaTarde,
-                                        float x, float manhaY, float tardeY,
-                                        float totalWidth, float baseFontSize, float minFontSize) {
+    private void desenharLinhaOficina(PdfContentByte cb, BaseFont bfRegular, BaseFont bfBold,
+                                      String oficina, float x, float y,
+                                      float totalWidth, float baseFontSize, float minFontSize) {
 
-        float manhaLabelWidth = bfBold.getWidthPoint("MANHÃ: ", baseFontSize);
-        float tardeLabelWidth = bfBold.getWidthPoint("TARDE: ", baseFontSize);
-        float indent = Math.max(manhaLabelWidth, tardeLabelWidth);
-        float availableTextWidth = totalWidth - indent;
+        float labelWidth = bfBold.getWidthPoint("OFICINA: ", baseFontSize);
+        float availableTextWidth = totalWidth - labelWidth;
 
-        // Renderizar MANHÃ:
+        // Renderizar rótulo OFICINA:
         cb.saveState();
         cb.setColorFill(COR_TEXTO_PRETO);
         cb.setFontAndSize(bfBold, baseFontSize);
         cb.beginText();
-        cb.setTextMatrix(x, manhaY);
-        cb.showText("MANHÃ: ");
+        cb.setTextMatrix(x, y);
+        cb.showText("OFICINA: ");
         cb.endText();
 
-        float manhaFontSize = calcularFontSize(bfRegular, oficinaManha, availableTextWidth, baseFontSize, minFontSize);
-        String manhaTextoFormatado = obterTextoAjustado(bfRegular, oficinaManha, availableTextWidth, manhaFontSize);
+        // Renderizar nome da oficina
+        float oficinaFontSize = calcularFontSize(bfRegular, oficina, availableTextWidth, baseFontSize, minFontSize);
+        String oficinaTextoFormatado = obterTextoAjustado(bfRegular, oficina, availableTextWidth, oficinaFontSize);
 
-        cb.setFontAndSize(bfRegular, manhaFontSize);
+        cb.setFontAndSize(bfRegular, oficinaFontSize);
         cb.beginText();
-        cb.setTextMatrix(x + indent, manhaY);
-        cb.showText(manhaTextoFormatado);
-        cb.endText();
-
-        // Renderizar TARDE:
-        cb.setFontAndSize(bfBold, baseFontSize);
-        cb.beginText();
-        cb.setTextMatrix(x, tardeY);
-        cb.showText("TARDE: ");
-        cb.endText();
-
-        float tardeFontSize = calcularFontSize(bfRegular, oficinaTarde, availableTextWidth, baseFontSize, minFontSize);
-        String tardeTextoFormatado = obterTextoAjustado(bfRegular, oficinaTarde, availableTextWidth, tardeFontSize);
-
-        cb.setFontAndSize(bfRegular, tardeFontSize);
-        cb.beginText();
-        cb.setTextMatrix(x + indent, tardeY);
-        cb.showText(tardeTextoFormatado);
+        cb.setTextMatrix(x + labelWidth, y);
+        cb.showText(oficinaTextoFormatado);
         cb.endText();
         cb.restoreState();
+    }
+
+    /**
+     * Determina o texto unificado da oficina para exibição no crachá.
+     */
+    private String obterTextoOficina(InscricaoCongresso inscricao) {
+        String manha = (inscricao.getOficinaManha() != null && !inscricao.getOficinaManha().isBlank())
+                ? inscricao.getOficinaManha().trim() : "";
+        String tarde = (inscricao.getOficinaTarde() != null && !inscricao.getOficinaTarde().isBlank())
+                ? inscricao.getOficinaTarde().trim() : "";
+
+        if (!manha.isBlank() && !tarde.isBlank()) {
+            if (manha.equalsIgnoreCase(tarde)) {
+                return manha;
+            }
+            return manha + " / " + tarde;
+        } else if (!manha.isBlank()) {
+            return manha;
+        } else if (!tarde.isBlank()) {
+            return tarde;
+        }
+        return "A Definir";
     }
 
     private float calcularFontSize(BaseFont bf, String texto, float maxWidth, float baseFontSize, float minFontSize) {
