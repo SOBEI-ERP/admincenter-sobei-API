@@ -89,7 +89,7 @@ public class CrachaCongressoService {
     }
 
     /**
-     * Renderiza um crachá dentro da folha de impressão em grade de 14 etiquetas Tilibra (288 x 108 pt).
+     * Renderiza um crachá dentro da folha de impressão em grade de 14 etiquetas Tilibra TB182 (288 x 96.1 pt).
      */
     private void desenharCrachaGrade(PdfContentByte cb, BaseFont bfRegular, BaseFont bfBold,
                                      InscricaoCongresso inscricao, float x, float y,
@@ -104,45 +104,20 @@ public class CrachaCongressoService {
         cb.stroke();
         cb.restoreState();
 
-        // 1. Determinar texto da Unidade / OSC
-        String unidadeTexto = obterTextoUnidade(inscricao);
+        // 1. Marca d'água oficial do Congresso no topo (XX CONGRESSO / DE EDUCAÇÃO INFANTIL SOBEI)
+        desenharMarcaDaguaCongresso(cb, bfBold, x, y, w, h);
 
-        // 2. Cabeçalho da Unidade (Azul #2E74B5, centralizado)
-        float headerY = y + h - 14.5f;
-        cb.saveState();
-        cb.setColorFill(COR_AZUL_CABECALHO);
-        cb.setFontAndSize(bfBold, 9.5f);
-        float unidadeTextWidth = bfBold.getWidthPoint(unidadeTexto, 9.5f);
-        float unidadeX = x + (w - unidadeTextWidth) / 2.0f;
-        cb.beginText();
-        cb.setTextMatrix(unidadeX, headerY);
-        cb.showText(unidadeTexto);
-        cb.endText();
-
-        // Linha azul contínua abaixo do cabeçalho
-        float lineY = headerY - 3.0f;
-        float lineWidth = Math.min(w - 30f, 180f);
-        float lineX1 = x + (w - lineWidth) / 2.0f;
-        float lineX2 = lineX1 + lineWidth;
-        cb.setColorStroke(COR_AZUL_CABECALHO);
-        cb.setLineWidth(1.1f);
-        cb.setLineDash(0);
-        cb.moveTo(lineX1, lineY);
-        cb.lineTo(lineX2, lineY);
-        cb.stroke();
-        cb.restoreState();
-
-        // 3. Nome Completo do Participante (Centro da etiqueta, perfeitamente equilibrado)
+        // 2. Nome Completo do Participante (Topo / Destaque Principal - Centralizado)
         String nome = (inscricao.getNomeCompleto() != null && !inscricao.getNomeCompleto().isBlank())
                 ? formatarNome(inscricao.getNomeCompleto())
                 : "Participante";
 
-        float nomeFontSize = 13.0f;
+        float nomeFontSize = 14.0f;
         if (nome.length() > 25) {
-            nomeFontSize = 11.0f;
+            nomeFontSize = 12.0f;
         }
         if (nome.length() > 36) {
-            nomeFontSize = 9.5f;
+            nomeFontSize = 10.5f;
         }
 
         Font fontNome = new Font(bfBold, nomeFontSize, Font.BOLD, COR_TEXTO_PRETO);
@@ -152,10 +127,10 @@ public class CrachaCongressoService {
 
         ColumnText ctNome = new ColumnText(cb);
         ctNome.setSimpleColumn(
-                x + 10f,
-                y + 17.5f,
-                x + w - 10f,
-                lineY - 2.5f
+                x + 8f,
+                y + 40.0f,
+                x + w - 8f,
+                y + h - 16.0f
         );
         ctNome.addElement(pNome);
         try {
@@ -164,45 +139,131 @@ public class CrachaCongressoService {
             log.warn("Erro ao renderizar nome na grade de crachás: {}", e.getMessage());
         }
 
-        // 4. Oficina na parte inferior da etiqueta (linha única)
+        // 3. Unidade / OSC (Abaixo do Nome - Centralizado em Azul Oficial)
+        String unidadeTexto = obterTextoUnidade(inscricao);
+        float unidadeY = y + 25.5f;
+        cb.saveState();
+        cb.setColorFill(COR_AZUL_CABECALHO);
+        cb.setFontAndSize(bfBold, 9.5f);
+        float unidadeTextWidth = bfBold.getWidthPoint(unidadeTexto, 9.5f);
+        float unidadeX = x + (w - unidadeTextWidth) / 2.0f;
+        cb.beginText();
+        cb.setTextMatrix(unidadeX, unidadeY);
+        cb.showText(unidadeTexto);
+        cb.endText();
+
+        // Linha azul contínua de apoio abaixo da unidade
+        float lineY = unidadeY - 3.0f;
+        float lineWidth = Math.min(w - 50f, Math.max(unidadeTextWidth + 20f, 130f));
+        float lineX1 = x + (w - lineWidth) / 2.0f;
+        float lineX2 = lineX1 + lineWidth;
+        cb.setColorStroke(COR_AZUL_CABECALHO);
+        cb.setLineWidth(1.0f);
+        cb.setLineDash(0);
+        cb.moveTo(lineX1, lineY);
+        cb.lineTo(lineX2, lineY);
+        cb.stroke();
+        cb.restoreState();
+
+        // 4. OFICINA (Aumentado e 100% Centralizado no Rodapé)
         String oficinaTexto = obterTextoOficina(inscricao);
+        float oficinaY = y + 8.5f;
+        float sheetOficinaFontSize = 10.5f;
+        float sheetTotalWidth = w - 24f;
 
-        float paddingLeft = 14f;
-        float oficinaY = y + 7.5f;
-        float sheetOficinaFontSize = 8.5f;
-        float sheetTotalWidth = w - (2 * paddingLeft);
-
-        desenharLinhaOficina(cb, bfRegular, bfBold, oficinaTexto,
-                x + paddingLeft, oficinaY, sheetTotalWidth, sheetOficinaFontSize, 6.5f);
+        desenharLinhaOficinaCentralizada(cb, bfRegular, bfBold, oficinaTexto,
+                x, oficinaY, w, sheetTotalWidth, sheetOficinaFontSize, 8.0f);
     }
 
     /**
-     * Renderiza uma única linha de oficina ("OFICINA: ...") com rótulo em negrito
-     * e texto ajustado proporcionalmente para não cortar.
+     * Desenha a marca d'água oficial estilizada do Congresso no topo da etiqueta.
      */
-    private void desenharLinhaOficina(PdfContentByte cb, BaseFont bfRegular, BaseFont bfBold,
-                                      String oficina, float x, float y,
-                                      float totalWidth, float baseFontSize, float minFontSize) {
+    private void desenharMarcaDaguaCongresso(PdfContentByte cb, BaseFont bfBold, float x, float y, float w, float h) {
+        cb.saveState();
+        Color corMarca = new Color(130, 140, 175); // Tom suave elegante de marca d'água
+        cb.setColorStroke(corMarca);
+        cb.setColorFill(corMarca);
+
+        float topY = y + h - 3.5f;
+
+        // 1. Moldura retangular: "XX | CONGRESSO"
+        float boxWidth = 145f;
+        float boxHeight = 8.5f;
+        float boxX = x + (w - boxWidth) / 2.0f;
+        float boxY = topY - boxHeight;
+
+        cb.setLineWidth(0.6f);
+        cb.setLineDash(0);
+        cb.rectangle(boxX, boxY, boxWidth, boxHeight);
+        cb.stroke();
+
+        // Divisória vertical separando o "XX" de "CONGRESSO"
+        float xxWidth = 24f;
+        cb.moveTo(boxX + xxWidth, boxY);
+        cb.lineTo(boxX + xxWidth, boxY + boxHeight);
+        cb.stroke();
+
+        // Texto "XX"
+        cb.setFontAndSize(bfBold, 7.2f);
+        float xxTextWidth = bfBold.getWidthPoint("XX", 7.2f);
+        cb.beginText();
+        cb.setTextMatrix(boxX + (xxWidth - xxTextWidth) / 2.0f, boxY + 2.0f);
+        cb.showText("XX");
+        cb.endText();
+
+        // Texto "CONGRESSO"
+        cb.setFontAndSize(bfBold, 6.8f);
+        float congressoTextWidth = bfBold.getWidthPoint("CONGRESSO", 6.8f);
+        float congressoAvailable = boxWidth - xxWidth;
+        cb.beginText();
+        cb.setTextMatrix(boxX + xxWidth + (congressoAvailable - congressoTextWidth) / 2.0f, boxY + 2.0f);
+        cb.showText("CONGRESSO");
+        cb.endText();
+
+        // 2. Subtítulo: "DE EDUCAÇÃO INFANTIL SOBEI"
+        String subtitulo = "DE EDUCAÇÃO INFANTIL SOBEI";
+        float subFontSize = 4.8f;
+        cb.setFontAndSize(bfBold, subFontSize);
+        float subWidth = bfBold.getWidthPoint(subtitulo, subFontSize);
+        cb.beginText();
+        cb.setTextMatrix(x + (w - subWidth) / 2.0f, boxY - 4.5f);
+        cb.showText(subtitulo);
+        cb.endText();
+
+        cb.restoreState();
+    }
+
+    /**
+     * Renderiza a linha de oficina aumentada e perfeitamente centralizada na horizontal.
+     */
+    private void desenharLinhaOficinaCentralizada(PdfContentByte cb, BaseFont bfRegular, BaseFont bfBold,
+                                                String oficina, float cardX, float y, float cardWidth,
+                                                float maxAvailableWidth, float baseFontSize, float minFontSize) {
 
         float labelWidth = bfBold.getWidthPoint("OFICINA: ", baseFontSize);
-        float availableTextWidth = totalWidth - labelWidth;
+        float availableTextWidth = maxAvailableWidth - labelWidth;
+
+        // Calcular tamanho de fonte da oficina e largura ajustada
+        float oficinaFontSize = calcularFontSize(bfRegular, oficina, availableTextWidth, baseFontSize, minFontSize);
+        String oficinaTextoFormatado = obterTextoAjustado(bfRegular, oficina, availableTextWidth, oficinaFontSize);
+        float textoWidth = bfRegular.getWidthPoint(oficinaTextoFormatado, oficinaFontSize);
+
+        float totalLinhaWidth = labelWidth + textoWidth;
+        float startX = cardX + (cardWidth - totalLinhaWidth) / 2.0f;
 
         // Renderizar rótulo OFICINA:
         cb.saveState();
         cb.setColorFill(COR_TEXTO_PRETO);
         cb.setFontAndSize(bfBold, baseFontSize);
         cb.beginText();
-        cb.setTextMatrix(x, y);
+        cb.setTextMatrix(startX, y);
         cb.showText("OFICINA: ");
         cb.endText();
 
-        // Renderizar nome da oficina
-        float oficinaFontSize = calcularFontSize(bfRegular, oficina, availableTextWidth, baseFontSize, minFontSize);
-        String oficinaTextoFormatado = obterTextoAjustado(bfRegular, oficina, availableTextWidth, oficinaFontSize);
-
+        // Renderizar texto da oficina
         cb.setFontAndSize(bfRegular, oficinaFontSize);
         cb.beginText();
-        cb.setTextMatrix(x + labelWidth, y);
+        cb.setTextMatrix(startX + labelWidth, y);
         cb.showText(oficinaTextoFormatado);
         cb.endText();
         cb.restoreState();
