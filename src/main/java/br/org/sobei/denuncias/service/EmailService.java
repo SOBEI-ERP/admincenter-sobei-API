@@ -1,6 +1,8 @@
 package br.org.sobei.denuncias.service;
 
 import br.org.sobei.denuncias.model.entity.InscricaoCongresso;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +12,15 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -18,6 +28,18 @@ public class EmailService {
 
     @Autowired(required = false)
     private JavaMailSender mailSender;
+
+    @Autowired(required = false)
+    private ObjectMapper objectMapper = new ObjectMapper();
+
+    @Value("${app.resend.api-key:}")
+    private String resendApiKey;
+
+    @Value("${app.resend.from:Congresso SOBEI 2026 <onboarding@resend.dev>}")
+    private String resendFrom;
+
+    @Value("${app.resend.api-url:https://api.resend.com/emails}")
+    private String resendApiUrl;
 
     @Value("${app.mail.from:congresso@sobei.org.br}")
     private String mailFrom;
@@ -30,6 +52,7 @@ public class EmailService {
 
     /**
      * Envia o certificado em anexo para o e-mail do participante com corpo HTML estilizado.
+     * Prioriza o envio direto via Resend API quando configurado.
      *
      * @param inscricao Dados do inscrito
      * @param pdfBytes  Conteúdo do arquivo PDF gerado
@@ -44,11 +67,104 @@ public class EmailService {
             throw new IllegalArgumentException("O participante não possui endereço de e-mail cadastrado.");
         }
 
-        if (!mailEnabled || mailSender == null) {
-            log.info("[SIMULAÇÃO DE E-MAIL] Certificado gerado para '{}' <{}>. Disparo via SMTP desabilitado ou sem servidor configurado.", nome, emailDestino);
+        if (!mailEnabled) {
+            log.info("[SIMULAÇÃO DE E-MAIL] Certificado gerado para '{}' <{}>. Disparo de e-mail desabilitado globalmente.", nome, emailDestino);
             return true;
         }
 
+        // 1. Prioridade: Envio via Resend API se a chave estiver configurada
+        if (resendApiKey != null && !resendApiKey.isBlank()) {
+            return enviarViaResend(inscricao, emailDestino, nome, pdfBytes);
+        }
+
+        // 2. Fallback: Envio via Spring Mail (SMTP) se houver servidor configurado
+        if (mailSender != null) {
+            return enviarViaSmtp(inscricao, emailDestino, nome, pdfBytes);
+        }
+
+        // 3. Simulação: Caso nenhum provedor de envio esteja ativo em ambiente dev
+        log.info("[SIMULAÇÃO DE E-MAIL] Certificado gerado para '{}' <{}>. Nenhuma chave do Resend ou servidor SMTP configurado.", nome, emailDestino);
+        return true;
+    }
+
+    /**
+     * Envia o e-mail com anexo utilizando a API REST oficial do Resend.
+     */
+    private boolean enviarViaResend(InscricaoCongresso inscricao, String emailDestino, String nome, byte[] pdfBytes) {
+        try {
+            String base64Pdf = Base64.getEncoder().encodeToString(pdfBytes);
+            String corpoHtml = buildCorpoEmailCertificado(nome);
+            String nomeArquivo = "Certificado_Congresso_SOBEI_2026.pdf";
+
+            Map<String, Object> attachment = Map.of(
+                    "filename", nomeArquivo,
+                    "content", base64Pdf
+            );
+
+            Map<String, Object> payload = Map.of(
+                    "from", resendFrom,
+                    "to", List.of(emailDestino),
+                    "subject", "Certificado de Participação — XX Congresso de Educação Infantil SOBEI 2026",
+                    "html", corpoHtml,
+                    "attachments", List.of(attachment)
+            );
+
+            String requestBody = objectMapper.writeValueAsString(payload);
+
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(resendApiUrl))
+                    .header("Authorization", "Bearer " + resendApiKey.trim())
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .timeout(Duration.ofSeconds(20))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            int statusCode = response.statusCode();
+            String responseBody = response.body();
+
+            if (statusCode >= 200 && statusCode < 300) {
+                String idEnvio = "";
+                try {
+                    JsonNode root = objectMapper.readTree(responseBody);
+                    if (root.has("id")) {
+                        idEnvio = root.get("id").asText();
+                    }
+                } catch (Exception ignored) {}
+
+                log.info("Certificado enviado com sucesso via Resend API para '{}' <{}> (Resend ID: {}, Inscrição ID: {})",
+                        nome, emailDestino, idEnvio, inscricao.getId());
+                return true;
+            } else {
+                log.error("Falha ao enviar e-mail via Resend para '{}' <{}>. HTTP Status: {} - Body: {}",
+                        nome, emailDestino, statusCode, responseBody);
+                String errorMsg = "Erro na API Resend (HTTP " + statusCode + "): " + responseBody;
+                try {
+                    JsonNode root = objectMapper.readTree(responseBody);
+                    if (root.has("message")) {
+                        errorMsg = root.get("message").asText();
+                    }
+                } catch (Exception ignored) {}
+                throw new RuntimeException("Falha ao enviar certificado via Resend: " + errorMsg);
+            }
+        } catch (Exception e) {
+            log.error("Erro durante comunicação com a API do Resend para '{}' <{}>: {}", nome, emailDestino, e.getMessage(), e);
+            if (e instanceof RuntimeException re && re.getMessage() != null && re.getMessage().contains("Resend")) {
+                throw re;
+            }
+            throw new RuntimeException("Falha ao enviar e-mail via Resend: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Envia o e-mail com anexo utilizando JavaMailSender (SMTP).
+     */
+    private boolean enviarViaSmtp(InscricaoCongresso inscricao, String emailDestino, String nome, byte[] pdfBytes) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
@@ -64,13 +180,11 @@ public class EmailService {
             helper.addAttachment(nomeArquivo, new ByteArrayResource(pdfBytes), "application/pdf");
 
             mailSender.send(message);
-            log.info("Certificado enviado com sucesso por e-mail para '{}' <{}> (Inscrição ID: {})", nome, emailDestino, inscricao.getId());
+            log.info("Certificado enviado com sucesso por SMTP para '{}' <{}> (Inscrição ID: {})", nome, emailDestino, inscricao.getId());
             return true;
         } catch (Exception e) {
-            log.error("Falha ao enviar e-mail com certificado para '{}' <{}>: {}", nome, emailDestino, e.getMessage(), e);
-            // Em caso de falha de conexão SMTP (ex: ambiente local sem servidor SMTP configurado),
-            // registra o log detalhado e propaga mensagem amigável.
-            throw new RuntimeException("Não foi possível enviar o e-mail no momento: " + e.getMessage(), e);
+            log.error("Falha ao enviar e-mail por SMTP para '{}' <{}>: {}", nome, emailDestino, e.getMessage(), e);
+            throw new RuntimeException("Não foi possível enviar o e-mail via SMTP: " + e.getMessage(), e);
         }
     }
 

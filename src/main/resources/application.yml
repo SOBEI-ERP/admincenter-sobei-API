@@ -67,6 +67,11 @@ app:
     from-name: ${MAIL_FROM_NAME:Congresso SOBEI 2026}
     enabled: ${MAIL_ENABLED:true}
 
+  resend:
+    api-key: ${RESEND_API_KEY:}
+    from: ${RESEND_FROM:Congresso SOBEI 2026 <onboarding@resend.dev>}
+    api-url: ${RESEND_API_URL:https://api.resend.com/emails}
+
   jwt:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
