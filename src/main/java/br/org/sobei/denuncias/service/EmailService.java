@@ -147,17 +147,21 @@ public class EmailService {
                 try {
                     JsonNode root = objectMapper.readTree(responseBody);
                     if (root.has("message")) {
-                        errorMsg = root.get("message").asText();
+                        String rawMsg = root.get("message").asText();
+                        if (statusCode == 403 && rawMsg.contains("only send testing emails to your own email address")) {
+                            errorMsg = "O remetente de testes (onboarding@resend.dev) só permite envios para o seu próprio e-mail cadastrado no Resend. Para disparar certificados para outros e-mails (" + emailDestino + "), é necessário cadastrar e verificar seu domínio oficial no painel do Resend (resend.com/domains).";
+                        } else {
+                            errorMsg = rawMsg;
+                        }
                     }
                 } catch (Exception ignored) {}
-                throw new RuntimeException("Falha ao enviar certificado via Resend: " + errorMsg);
+                throw new IllegalArgumentException(errorMsg);
             }
+        } catch (IllegalArgumentException iae) {
+            throw iae;
         } catch (Exception e) {
             log.error("Erro durante comunicação com a API do Resend para '{}' <{}>: {}", nome, emailDestino, e.getMessage(), e);
-            if (e instanceof RuntimeException re && re.getMessage() != null && re.getMessage().contains("Resend")) {
-                throw re;
-            }
-            throw new RuntimeException("Falha ao enviar e-mail via Resend: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Falha ao comunicar com o serviço Resend: " + e.getMessage(), e);
         }
     }
 
@@ -193,7 +197,7 @@ public class EmailService {
      */
     private String buildCorpoEmailCertificado(String nome) {
         String primeiroNome = (nome != null && !nome.isBlank()) ? nome.split(" ")[0] : "Participante";
-        return """
+        String template = """
             <!DOCTYPE html>
             <html lang="pt-BR">
             <head>
@@ -220,7 +224,7 @@ public class EmailService {
                   <p>XX Congresso de Educação Infantil SOBEI</p>
                 </div>
                 <div class="content">
-                  <div class="greeting">Olá, %s!</div>
+                  <div class="greeting">Olá, {{NOME}}!</div>
                   <p>Agradecemos imensamente a sua valiosa participação no <strong>XX Congresso de Educação Infantil SOBEI 2026</strong>, realizado nos dias 11 e 12 de setembro.</p>
                   <p>É com grande alegria que disponibilizamos o seu <strong>Certificado Oficial de Participação</strong> em anexo neste e-mail.</p>
                   
@@ -240,6 +244,7 @@ public class EmailService {
               </div>
             </body>
             </html>
-            """.formatted(primeiroNome);
+            """;
+        return template.replace("{{NOME}}", primeiroNome);
     }
 }
