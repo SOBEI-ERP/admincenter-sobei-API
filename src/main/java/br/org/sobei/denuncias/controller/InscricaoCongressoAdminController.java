@@ -62,6 +62,14 @@ public class InscricaoCongressoAdminController {
         ));
     }
 
+    @Operation(summary = "Enviar certificados em lote para participantes com check-in em ambos os dias", description = "Dispara os certificados por e-mail para todos os inscritos que compareceram aos dois dias (11 e 12 de setembro).")
+    @PostMapping("/enviar-certificados-ambos-dias")
+    public ResponseEntity<java.util.Map<String, Object>> enviarCertificadosAmbosDias(
+            Principal principal
+    ) {
+        return ResponseEntity.ok(inscricaoService.enviarCertificadosLoteAmbosDias(principal.getName()));
+    }
+
     @Operation(summary = "Visualizar ou baixar certificado em PDF", description = "Gera e retorna o arquivo PDF do certificado para visualização ou download direto.")
     @GetMapping(value = "/{id}/certificado", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> baixarCertificado(

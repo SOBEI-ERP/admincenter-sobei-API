@@ -50,4 +50,10 @@ public interface InscricaoCongressoRepository extends JpaRepository<InscricaoCon
             @Param("termoCpf") String termoCpf,
             @Param("presente") Boolean presente
     );
+
+    @Query("SELECT i FROM InscricaoCongresso i WHERE i.presenteDia11 = true AND i.presenteDia12 = true ORDER BY i.nomeCompleto ASC")
+    List<InscricaoCongresso> findAllComCheckinAmbosDias();
+
+    @Query("SELECT i FROM InscricaoCongresso i WHERE LOWER(i.tipoOsc) = 'sobei' AND LOWER(i.unidade) = LOWER(:unidade) AND i.presenteDia11 = true AND i.presenteDia12 = true ORDER BY i.nomeCompleto ASC")
+    List<InscricaoCongresso> findAllComCheckinAmbosDiasPorUnidade(@Param("unidade") String unidade);
 }

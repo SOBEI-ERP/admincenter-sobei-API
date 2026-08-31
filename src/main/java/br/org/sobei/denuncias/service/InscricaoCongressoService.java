@@ -257,6 +257,58 @@ public class InscricaoCongressoService {
         return emailService.enviarCertificadoCongresso(inscricao, pdfBytes);
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> enviarCertificadosLoteAmbosDias(String adminEmail) {
+        Usuario admin = getAdmin(adminEmail);
+        List<InscricaoCongresso> inscritos;
+
+        if (admin.getNivel() == NivelAdmin.coordenadora) {
+            String unidade = admin.getUnidade() != null ? admin.getUnidade().trim() : "";
+            inscritos = inscricaoRepository.findAllComCheckinAmbosDiasPorUnidade(unidade);
+        } else {
+            inscritos = inscricaoRepository.findAllComCheckinAmbosDias();
+        }
+
+        if (inscritos.isEmpty()) {
+            return java.util.Map.of(
+                    "success", true,
+                    "totalElegiveis", 0,
+                    "totalEnviados", 0,
+                    "totalFalhas", 0,
+                    "message", "Nenhum participante com check-in em ambos os dias (11 e 12/Set) foi encontrado."
+            );
+        }
+
+        int enviados = 0;
+        int falhas = 0;
+
+        for (InscricaoCongresso inscricao : inscritos) {
+            if (inscricao.getEmail() == null || inscricao.getEmail().trim().isBlank()) {
+                falhas++;
+                continue;
+            }
+            try {
+                byte[] pdfBytes = certificadoService.gerarCertificadoPdf(inscricao);
+                boolean ok = emailService.enviarCertificadoCongresso(inscricao, pdfBytes);
+                if (ok) {
+                    enviados++;
+                } else {
+                    falhas++;
+                }
+            } catch (Exception e) {
+                falhas++;
+            }
+        }
+
+        return java.util.Map.of(
+                "success", true,
+                "totalElegiveis", inscritos.size(),
+                "totalEnviados", enviados,
+                "totalFalhas", falhas,
+                "message", String.format("Disparo concluído: %d certificado(s) enviado(s) com sucesso para participantes com check-in em ambos os dias (%d falhas/sem e-mail).", enviados, falhas)
+        );
+    }
+
     private InscricaoCongresso buscarInscricaoAutorizada(Integer id, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
         InscricaoCongresso inscricao = inscricaoRepository.findById(id)
