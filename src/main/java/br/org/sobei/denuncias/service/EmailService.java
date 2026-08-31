@@ -205,36 +205,43 @@ public class EmailService {
               <style>
                 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #FAF5EB; margin: 0; padding: 20px; color: #1F2937; }
                 .container { max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(10, 25, 63, 0.08); border: 1px solid #E5E7EB; }
-                .header { background: linear-gradient(135deg, #0A193F 0%, #16285A 100%); padding: 36px 30px; text-align: center; color: #FFFFFF; }
-                .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
-                .header p { margin: 8px 0 0; font-size: 14px; color: #FFC400; font-weight: 600; }
+                .header { background: linear-gradient(135deg, #0A193F 0%, #16285A 100%); padding: 34px 25px; text-align: center; color: #FFFFFF; }
+                .badge-table { margin: 0 auto; border: 2.5px solid #FFFFFF; border-collapse: collapse; border-spacing: 0; }
+                .badge-xx { background-color: #FFFFFF; color: #0A193F; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 17px; font-weight: 900; padding: 5px 12px; line-height: 1; letter-spacing: -0.5px; text-align: center; vertical-align: middle; }
+                .badge-congresso { background-color: transparent; color: #FFFFFF; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 17px; font-weight: 900; padding: 5px 14px; line-height: 1; letter-spacing: 2px; text-align: center; vertical-align: middle; }
+                .badge-sub { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #FFFFFF; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px; margin-bottom: 22px; }
+                .header-divider { border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 18px; margin-top: 4px; }
+                .header h1 { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 21px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; }
                 .content { padding: 32px 30px; line-height: 1.65; font-size: 15px; color: #374151; }
                 .greeting { font-size: 18px; font-weight: bold; color: #0A193F; margin-bottom: 16px; }
-                .card-info { background-color: #F8FAFC; border-left: 4px solid #D49B2A; padding: 16px 20px; border-radius: 8px; margin: 24px 0; }
-                .card-info p { margin: 4px 0; font-size: 14px; }
                 .footer { background-color: #F3F4F6; padding: 24px 30px; text-align: center; font-size: 12px; color: #6B7280; border-top: 1px solid #E5E7EB; }
-                .badge { display: inline-block; background-color: #FAF5EB; color: #B68425; font-weight: bold; font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 1px solid #D49B2A; margin-bottom: 12px; }
               </style>
             </head>
             <body>
               <div class="container">
                 <div class="header">
-                  <div class="badge">CONGRESSO SOBEI 2026</div>
-                  <h1>Certificado de Participação</h1>
-                  <p>XX Congresso de Educação Infantil SOBEI</p>
+                  <!-- Badge Oficial: XX CONGRESSO -->
+                  <table class="badge-table" align="center" cellpadding="0" cellspacing="0" style="margin: 0 auto; border: 2.5px solid #FFFFFF; border-collapse: collapse; border-spacing: 0;">
+                    <tr>
+                      <td class="badge-xx" style="background-color: #FFFFFF; color: #0A193F; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 17px; font-weight: 900; padding: 5px 12px; line-height: 1; letter-spacing: -0.5px; text-align: center; vertical-align: middle;">XX</td>
+                      <td class="badge-congresso" style="background-color: transparent; color: #FFFFFF; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 17px; font-weight: 900; padding: 5px 14px; line-height: 1; letter-spacing: 2px; text-align: center; vertical-align: middle;">CONGRESSO</td>
+                    </tr>
+                  </table>
+                  
+                  <!-- Subtítulo: DE EDUCAÇÃO INFANTIL SOBEI -->
+                  <div class="badge-sub" style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #FFFFFF; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 10px; margin-bottom: 22px;">
+                    DE EDUCAÇÃO INFANTIL SOBEI
+                  </div>
+
+                  <!-- Título: CERTIFICADO DE PARTICIPAÇÃO -->
+                  <div class="header-divider" style="border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 18px; margin-top: 4px;">
+                    <h1 style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 21px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF;">Certificado de Participação</h1>
+                  </div>
                 </div>
                 <div class="content">
                   <div class="greeting">Olá, {{NOME}}!</div>
                   <p>Agradecemos imensamente a sua valiosa participação no <strong>XX Congresso de Educação Infantil SOBEI 2026</strong>, realizado nos dias 11 e 12 de setembro.</p>
                   <p>É com grande alegria que disponibilizamos o seu <strong>Certificado Oficial de Participação</strong> em anexo neste e-mail.</p>
-                  
-                  <div class="card-info">
-                    <p><strong>Evento:</strong> XX Congresso de Educação Infantil SOBEI 2026</p>
-                    <p><strong>Tema:</strong> <em>Cuidar, acolher e incluir. Construindo vínculos na primeiríssima infância</em></p>
-                    <p><strong>Carga Horária:</strong> 14 (quatorze) horas</p>
-                    <p><strong>Data:</strong> 11 e 12 de Setembro de 2026</p>
-                  </div>
-                  
                   <p>Você pode baixar, imprimir ou salvar o seu certificado para comprovação de participação pedagógica.</p>
                   <p style="margin-top: 28px;">Atenciosamente,<br><strong>Comissão Organizadora do Congresso SOBEI</strong><br><span style="color: #6B7280; font-size: 13px;">Sociedade Beneficente Equilíbrio de Interlagos</span></p>
                 </div>
