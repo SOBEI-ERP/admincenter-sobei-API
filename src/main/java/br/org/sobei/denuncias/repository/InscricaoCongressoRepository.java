@@ -16,6 +16,8 @@ public interface InscricaoCongressoRepository extends JpaRepository<InscricaoCon
 
     Optional<InscricaoCongresso> findByEmailIgnoreCase(String email);
 
+    boolean existsByEmailIgnoreCase(String email);
+
     @Query("SELECT i FROM InscricaoCongresso i WHERE " +
            "(i.cpf = :cpf OR REPLACE(REPLACE(i.cpf, '.', ''), '-', '') = :cpfSemMascara) AND " +
            "LOWER(TRIM(i.email)) = LOWER(TRIM(:email))")

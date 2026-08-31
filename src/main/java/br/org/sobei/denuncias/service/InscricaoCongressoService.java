@@ -63,10 +63,19 @@ public class InscricaoCongressoService {
             throw new IllegalArgumentException("Este CPF já está inscrito no Congresso.");
         }
 
+        String emailLimpo = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
+        if (emailLimpo.isBlank()) {
+            throw new IllegalArgumentException("O e-mail é obrigatório.");
+        }
+
+        if (inscricaoRepository.existsByEmailIgnoreCase(emailLimpo)) {
+            throw new IllegalArgumentException("Este e-mail já está cadastrado em outra inscrição do Congresso.");
+        }
+
         InscricaoCongresso inscricao = InscricaoCongresso.builder()
                 .nomeCompleto(request.getNomeCompleto().trim())
                 .cpf(cpfFormatado)
-                .email(request.getEmail().trim().toLowerCase())
+                .email(emailLimpo)
                 .tipoOsc(tipoOscLimpo)
                 .unidade(unidadeLimpa)
                 .outraOsc(outraOscLimpa)
