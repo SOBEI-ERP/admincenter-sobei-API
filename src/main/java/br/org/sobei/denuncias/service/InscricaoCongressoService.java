@@ -27,10 +27,31 @@ public class InscricaoCongressoService {
     private final CrachaCongressoService crachaService;
     private final EmailService emailService;
 
+    public static final long LIMITE_GERAL_INSCRICOES = 900L;
+
     // ---- PÚBLICO ----
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> obterStatusVagas() {
+        long total = inscricaoRepository.count();
+        boolean abertas = total < LIMITE_GERAL_INSCRICOES;
+        long restantes = Math.max(0, LIMITE_GERAL_INSCRICOES - total);
+
+        return java.util.Map.of(
+                "totalInscritos", total,
+                "limiteMaximo", LIMITE_GERAL_INSCRICOES,
+                "vagasRestantes", restantes,
+                "inscricoesAbertas", abertas
+        );
+    }
 
     @Transactional
     public InscricaoCongressoResponse criar(CriarInscricaoCongressoRequest request) {
+        long totalInscritos = inscricaoRepository.count();
+        if (totalInscritos >= LIMITE_GERAL_INSCRICOES) {
+            throw new IllegalArgumentException("As inscrições para o Congresso estão encerradas. O limite máximo de " + LIMITE_GERAL_INSCRICOES + " participantes foi atingido.");
+        }
+
         String tipoOscLimpo = request.getTipoOsc().trim().toUpperCase();
         if (!tipoOscLimpo.equals("SOBEI") && !tipoOscLimpo.equals("OUTRA")) {
             throw new IllegalArgumentException("Tipo de OSC inválido. Escolha 'SOBEI' ou 'OUTRA'.");
@@ -220,11 +241,58 @@ public class InscricaoCongressoService {
     public InscricaoCongressoResponse atualizarOficinas(Integer id, AtualizarOficinasRequest request, String adminEmail) {
         InscricaoCongresso inscricao = buscarInscricaoAutorizada(id, adminEmail);
 
-        if (request.getOficinaManha() != null) {
-            inscricao.setOficinaManha(request.getOficinaManha().trim().isBlank() ? null : request.getOficinaManha().trim());
+        String novaOficina = null;
+        if (request.getOficina() != null) {
+            novaOficina = request.getOficina().trim().isBlank() ? null : request.getOficina().trim();
+        } else if (request.getOficinaManha() != null && !request.getOficinaManha().trim().isBlank()) {
+            novaOficina = request.getOficinaManha().trim();
+        } else if (request.getOficinaTarde() != null && !request.getOficinaTarde().trim().isBlank()) {
+            novaOficina = request.getOficinaTarde().trim();
         }
-        if (request.getOficinaTarde() != null) {
-            inscricao.setOficinaTarde(request.getOficinaTarde().trim().isBlank() ? null : request.getOficinaTarde().trim());
+
+        // Validação de cota máxima da unidade para participantes SOBEI
+        if (novaOficina != null && "SOBEI".equalsIgnoreCase(inscricao.getTipoOsc())) {
+            int cota = br.org.sobei.denuncias.config.OficinaCotasConfig.obterCotaUnidade(novaOficina, inscricao.getUnidade());
+            if (cota < 999) {
+                String chaveOficinaNova = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(novaOficina);
+                String chaveUnidade = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarUnidade(inscricao.getUnidade());
+
+                long ocupadas = inscricaoRepository.findAll().stream()
+                        .filter(i -> !i.getId().equals(id))
+                        .filter(i -> "SOBEI".equalsIgnoreCase(i.getTipoOsc()))
+                        .filter(i -> br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarUnidade(i.getUnidade()).equals(chaveUnidade))
+                        .filter(i -> {
+                            String of = i.getOficina() != null ? i.getOficina() : (i.getOficinaManha() != null ? i.getOficinaManha() : i.getOficinaTarde());
+                            if (of == null) return false;
+                            String chaveOf = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(of);
+                            return chaveOf.equals(chaveOficinaNova) || chaveOf.contains(chaveOficinaNova) || chaveOficinaNova.contains(chaveOf);
+                        })
+                        .count();
+
+                if (ocupadas >= cota) {
+                    throw new IllegalArgumentException(
+                            "A cota desta oficina para a unidade " + inscricao.getUnidade() +
+                            " já foi preenchida (" + ocupadas + "/" + cota + " vagas ocupadas)."
+                    );
+                }
+            }
+        }
+
+        if (request.getOficina() != null) {
+            String of = request.getOficina().trim().isBlank() ? null : request.getOficina().trim();
+            inscricao.setOficina(of);
+            inscricao.setOficinaManha(of);
+            inscricao.setOficinaTarde(of);
+        } else {
+            if (request.getOficinaManha() != null) {
+                inscricao.setOficinaManha(request.getOficinaManha().trim().isBlank() ? null : request.getOficinaManha().trim());
+            }
+            if (request.getOficinaTarde() != null) {
+                inscricao.setOficinaTarde(request.getOficinaTarde().trim().isBlank() ? null : request.getOficinaTarde().trim());
+            }
+            if (inscricao.getOficina() == null) {
+                inscricao.setOficina(inscricao.getOficinaManha() != null ? inscricao.getOficinaManha() : inscricao.getOficinaTarde());
+            }
         }
 
         InscricaoCongresso salva = inscricaoRepository.save(inscricao);
@@ -355,6 +423,7 @@ public class InscricaoCongressoService {
                 .dataPresencaDia11(i.getDataPresencaDia11())
                 .presenteDia12(i.getPresenteDia12())
                 .dataPresencaDia12(i.getDataPresencaDia12())
+                .oficina(i.getOficina() != null ? i.getOficina() : (i.getOficinaManha() != null ? i.getOficinaManha() : i.getOficinaTarde()))
                 .oficinaManha(i.getOficinaManha())
                 .oficinaTarde(i.getOficinaTarde())
                 .dataInscricao(i.getDataInscricao())

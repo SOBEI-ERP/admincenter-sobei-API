@@ -33,4 +33,10 @@ public class InscricaoCongressoPublicController {
     public ResponseEntity<InscricaoCongressoResponse> consultar(@Valid @RequestBody br.org.sobei.denuncias.dto.request.ConsultarInscricaoRequest request) {
         return ResponseEntity.ok(inscricaoService.consultar(request.getCpf(), request.getEmail()));
     }
+
+    @Operation(summary = "Status de Vagas do Congresso", description = "Retorna a disponibilidade geral de vagas e se as inscrições estão abertas (limite de 900).")
+    @org.springframework.web.bind.annotation.GetMapping("/status")
+    public ResponseEntity<java.util.Map<String, Object>> obterStatusVagas() {
+        return ResponseEntity.ok(inscricaoService.obterStatusVagas());
+    }
 }

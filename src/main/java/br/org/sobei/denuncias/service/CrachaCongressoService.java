@@ -270,6 +270,9 @@ public class CrachaCongressoService {
      * Determina o texto unificado da oficina para exibição no crachá.
      */
     private String obterTextoOficina(InscricaoCongresso inscricao) {
+        if (inscricao.getOficina() != null && !inscricao.getOficina().isBlank()) {
+            return inscricao.getOficina().trim();
+        }
         String manha = (inscricao.getOficinaManha() != null && !inscricao.getOficinaManha().isBlank())
                 ? inscricao.getOficinaManha().trim() : "";
         String tarde = (inscricao.getOficinaTarde() != null && !inscricao.getOficinaTarde().isBlank())

@@ -55,6 +55,9 @@ public class InscricaoCongresso {
     @Column(name = "data_presenca_dia12")
     private LocalDateTime dataPresencaDia12;
 
+    @Column(name = "oficina", length = 255)
+    private String oficina;
+
     @Column(name = "oficina_manha", length = 255)
     private String oficinaManha;
 

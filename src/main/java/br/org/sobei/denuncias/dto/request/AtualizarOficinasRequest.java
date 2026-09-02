@@ -12,6 +12,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AtualizarOficinasRequest {
 
+    @Size(max = 255, message = "O nome da oficina não pode ultrapassar 255 caracteres.")
+    private String oficina;
+
     @Size(max = 255, message = "O nome da oficina da manhã não pode ultrapassar 255 caracteres.")
     private String oficinaManha;
 

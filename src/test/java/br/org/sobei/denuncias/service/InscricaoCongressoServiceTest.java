@@ -3,6 +3,7 @@ package br.org.sobei.denuncias.service;
 import br.org.sobei.denuncias.dto.request.CriarInscricaoCongressoRequest;
 import br.org.sobei.denuncias.dto.response.InscricaoCongressoResponse;
 import br.org.sobei.denuncias.model.entity.InscricaoCongresso;
+import br.org.sobei.denuncias.model.entity.Usuario;
 import br.org.sobei.denuncias.repository.InscricaoCongressoRepository;
 import br.org.sobei.denuncias.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -98,5 +100,121 @@ class InscricaoCongressoServiceTest {
 
         assertEquals("Este CPF já está inscrito no Congresso.", exception.getMessage());
         verify(inscricaoRepository, never()).save(any(InscricaoCongresso.class));
+    }
+
+    @Test
+    @DisplayName("Deve atualizar oficina com sucesso")
+    void deveAtualizarOficinaComSucesso() {
+        Usuario admin = Usuario.builder()
+                .id(1)
+                .usuario("suporte")
+                .email("suporte@sobei.org.br")
+                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.suporte)
+                .build();
+
+        InscricaoCongresso inscricao = InscricaoCongresso.builder()
+                .id(10)
+                .nomeCompleto("Maria Educadora")
+                .cpf("123.456.789-00")
+                .email("maria@sobei.org.br")
+                .tipoOsc("SOBEI")
+                .unidade("Montanaro")
+                .build();
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(inscricaoRepository.findById(10)).thenReturn(Optional.of(inscricao));
+        when(inscricaoRepository.save(any(InscricaoCongresso.class))).thenAnswer(i -> i.getArgument(0));
+
+        br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
+                .oficina("Quem dança seus males espanta!")
+                .build();
+
+        InscricaoCongressoResponse res = inscricaoService.atualizarOficinas(10, req, "suporte@sobei.org.br");
+
+        assertNotNull(res);
+        assertEquals("Quem dança seus males espanta!", res.getOficina());
+        assertEquals("Quem dança seus males espanta!", inscricao.getOficina());
+        verify(inscricaoRepository, times(1)).save(inscricao);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar atualização quando a cota da unidade na oficina já foi atingida")
+    void deveRejeitarAtualizacaoQuandoCotaUnidadeAtingida() {
+        Usuario admin = Usuario.builder()
+                .id(1)
+                .usuario("suporte")
+                .email("suporte@sobei.org.br")
+                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.suporte)
+                .build();
+
+        InscricaoCongresso inscricaoAlvo = InscricaoCongresso.builder()
+                .id(10)
+                .nomeCompleto("Professora 2")
+                .cpf("222.222.222-22")
+                .email("prof2@sobei.org.br")
+                .tipoOsc("SOBEI")
+                .unidade("CEI Leblon")
+                .build();
+
+        InscricaoCongresso inscricaoJaAlocada = InscricaoCongresso.builder()
+                .id(9)
+                .nomeCompleto("Professora 1")
+                .cpf("111.111.111-11")
+                .email("prof1@sobei.org.br")
+                .tipoOsc("SOBEI")
+                .unidade("CEI Leblon")
+                .oficina("Cleide Derenzi Valadas")
+                .build();
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(inscricaoRepository.findById(10)).thenReturn(Optional.of(inscricaoAlvo));
+        when(inscricaoRepository.findAll()).thenReturn(List.of(inscricaoJaAlocada, inscricaoAlvo));
+
+        br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
+                .oficina("Cleide Derenzi Valadas")
+                .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                inscricaoService.atualizarOficinas(10, req, "suporte@sobei.org.br")
+        );
+
+        assertTrue(ex.getMessage().contains("A cota desta oficina para a unidade"));
+        assertTrue(ex.getMessage().contains("já foi preenchida"));
+        verify(inscricaoRepository, never()).save(inscricaoAlvo);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar criação de inscrição quando limite global de 900 for atingido")
+    void deveRejeitarCriacaoQuandoLimite900Atingido() {
+        when(inscricaoRepository.count()).thenReturn(900L);
+
+        CriarInscricaoCongressoRequest req = CriarInscricaoCongressoRequest.builder()
+                .nomeCompleto("Professor Novo")
+                .cpf("123.456.789-00")
+                .email("novo@sobei.org.br")
+                .tipoOsc("SOBEI")
+                .unidade("Montanaro")
+                .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                inscricaoService.criar(req)
+        );
+
+        assertTrue(ex.getMessage().contains("estão encerradas"));
+        assertTrue(ex.getMessage().contains("900"));
+        verify(inscricaoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar status correto de vagas")
+    void deveRetornarStatusCorretoDeVagas() {
+        when(inscricaoRepository.count()).thenReturn(850L);
+
+        java.util.Map<String, Object> status = inscricaoService.obterStatusVagas();
+
+        assertEquals(850L, status.get("totalInscritos"));
+        assertEquals(900L, status.get("limiteMaximo"));
+        assertEquals(50L, status.get("vagasRestantes"));
+        assertEquals(true, status.get("inscricoesAbertas"));
     }
 }

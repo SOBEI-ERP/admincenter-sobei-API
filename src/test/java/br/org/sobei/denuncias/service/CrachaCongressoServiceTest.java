@@ -27,8 +27,7 @@ class CrachaCongressoServiceTest {
                 .email("fabiana@sobei.org.br")
                 .tipoOsc("SOBEI")
                 .unidade("Montanaro")
-                .oficinaManha("Fernanda Polezein")
-                .oficinaTarde("Fernanda Polezein")
+                .oficina("Quem dança seus males espanta!")
                 .build();
 
         byte[] pdfBytes = crachaService.gerarCrachaIndividual(inscricao);
@@ -54,8 +53,7 @@ class CrachaCongressoServiceTest {
                     .email("participante" + i + "@sobei.org.br")
                     .tipoOsc("SOBEI")
                     .unidade("Montanaro")
-                    .oficinaManha("Fernanda Polezein")
-                    .oficinaTarde("Fabiola Cordeiro")
+                    .oficina("Entre contos, brincadeiras e canções")
                     .build());
         }
 
