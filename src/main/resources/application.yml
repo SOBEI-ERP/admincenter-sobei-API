@@ -73,7 +73,7 @@ app:
     api-url: ${RESEND_API_URL:https://api.resend.com/emails}
 
   jwt:
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:sobeiprotocolosecretkey2026superseguracommaisde256bitsdelargura}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
   cors:
@@ -129,5 +129,8 @@ spring:
 
 logging:
   level:
-    root: WARN
+    root: INFO
     br.org.sobei.denuncias: INFO
+    org.springframework.boot: INFO
+    org.flywaydb: INFO
+    org.hibernate: WARN
