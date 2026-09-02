@@ -133,4 +133,19 @@ public class InscricaoCongressoAdminController {
                 .headers(headers)
                 .body(pdfBytes);
     }
+
+    @Operation(summary = "Excluir inscrição do congresso (Apenas Suporte)", description = "Exclui permanentemente a inscrição de um participante. Permitido exclusivamente para usuários com nível de acesso Suporte.")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPORTE')")
+    public ResponseEntity<java.util.Map<String, Object>> deletarInscricao(
+            @PathVariable Integer id,
+            Principal principal
+    ) {
+        inscricaoService.deletarInscricao(id, principal.getName());
+        return ResponseEntity.ok(java.util.Map.of(
+                "success", true,
+                "message", "Inscrição excluída com sucesso.",
+                "id", id
+        ));
+    }
 }

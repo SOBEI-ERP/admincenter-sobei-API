@@ -4,6 +4,7 @@ import br.org.sobei.denuncias.dto.request.CriarInscricaoCongressoRequest;
 import br.org.sobei.denuncias.dto.response.InscricaoCongressoResponse;
 import br.org.sobei.denuncias.model.entity.InscricaoCongresso;
 import br.org.sobei.denuncias.model.entity.Usuario;
+import br.org.sobei.denuncias.model.enums.NivelAdmin;
 import br.org.sobei.denuncias.repository.InscricaoCongressoRepository;
 import br.org.sobei.denuncias.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -216,5 +217,46 @@ class InscricaoCongressoServiceTest {
         assertEquals(900L, status.get("limiteMaximo"));
         assertEquals(50L, status.get("vagasRestantes"));
         assertEquals(true, status.get("inscricoesAbertas"));
+    }
+
+    @Test
+    @DisplayName("Deve excluir inscrição com sucesso quando usuário for SUPORTE")
+    void deveExcluirInscricaoQuandoUsuarioForSuporte() {
+        Usuario suporte = Usuario.builder()
+                .id(1)
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+        InscricaoCongresso inscricao = InscricaoCongresso.builder()
+                .id(99)
+                .nomeCompleto("Participante Exclusao")
+                .cpf("111.222.333-44")
+                .build();
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(suporte));
+        when(inscricaoRepository.findById(99)).thenReturn(Optional.of(inscricao));
+
+        assertDoesNotThrow(() -> inscricaoService.deletarInscricao(99, "suporte@sobei.org.br"));
+        verify(inscricaoRepository, times(1)).delete(inscricao);
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar exclusão de inscrição quando usuário NÃO for SUPORTE")
+    void deveRejeitarExclusaoQuandoUsuarioNaoForSuporte() {
+        Usuario credenciador = Usuario.builder()
+                .id(2)
+                .email("credenciador@sobei.org.br")
+                .nivel(NivelAdmin.credenciador)
+                .build();
+
+        when(usuarioRepository.findByEmail("credenciador@sobei.org.br")).thenReturn(Optional.of(credenciador));
+
+        org.springframework.security.access.AccessDeniedException ex = assertThrows(
+                org.springframework.security.access.AccessDeniedException.class,
+                () -> inscricaoService.deletarInscricao(99, "credenciador@sobei.org.br")
+        );
+
+        assertTrue(ex.getMessage().contains("Suporte"));
+        verify(inscricaoRepository, never()).delete(any());
     }
 }

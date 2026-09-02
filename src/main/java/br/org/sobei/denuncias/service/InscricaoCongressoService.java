@@ -386,6 +386,19 @@ public class InscricaoCongressoService {
         );
     }
 
+    @Transactional
+    public void deletarInscricao(Integer id, String adminEmail) {
+        Usuario admin = getAdmin(adminEmail);
+        if (admin.getNivel() != NivelAdmin.suporte) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas usuários com nível de acesso Suporte podem excluir inscrições do congresso.");
+        }
+
+        InscricaoCongresso inscricao = inscricaoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Inscrição não encontrada (ID: " + id + ")."));
+
+        inscricaoRepository.delete(inscricao);
+    }
+
     private InscricaoCongresso buscarInscricaoAutorizada(Integer id, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
         InscricaoCongresso inscricao = inscricaoRepository.findById(id)
