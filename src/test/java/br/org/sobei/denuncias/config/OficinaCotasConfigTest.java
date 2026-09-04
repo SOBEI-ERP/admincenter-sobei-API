@@ -36,4 +36,13 @@ class OficinaCotasConfigTest {
         assertEquals("ORQUIDEAS", OficinaCotasConfig.normalizarUnidade("Orquídeas"));
         assertEquals("ARAUCARIAS", OficinaCotasConfig.normalizarUnidade("CEI Araucárias"));
     }
+
+    @Test
+    @DisplayName("Deve retornar cotas corretas para a oficina da Shirley da Silva")
+    void deveRetornarCotasShirleySilva() {
+        assertEquals(2, OficinaCotasConfig.obterCotaUnidade("Shirley da Silva", "Montanaro"));
+        assertEquals(2, OficinaCotasConfig.obterCotaUnidade("Motricidade Livre", "CEI Montanaro"));
+        assertEquals(1, OficinaCotasConfig.obterCotaUnidade("Shirley da Silva", "CEI Leblon"));
+        assertEquals(3, OficinaCotasConfig.obterCotaUnidade("Motricidade Livre", "CEI Orquídeas"));
+    }
 }

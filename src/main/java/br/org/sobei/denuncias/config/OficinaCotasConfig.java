@@ -234,9 +234,17 @@ public final class OficinaCotasConfig {
                         Map.entry("IPES", 1)
                 ));
 
-        // 23. Shirley da Silva Santos
+        // 23. Shirley da Silva
+        registrar("Shirley da Silva",
+                "Motricidade Livre",
+                Map.ofEntries(
+                        Map.entry("MONTANARO", 2), Map.entry("LEBLON", 1), Map.entry("IMBUIAS", 1), Map.entry("BELA_VISTA", 2),
+                        Map.entry("SABIAS", 1), Map.entry("ACACIAS", 2), Map.entry("ORQUIDEAS", 3), Map.entry("CEDRO", 1),
+                        Map.entry("OLIVEIRAS", 1), Map.entry("MACAUBA", 2), Map.entry("CEREJEIRAS", 1), Map.entry("ARAUCARIAS", 1),
+                        Map.entry("IPES", 1)
+                ));
         registrar("Shirley da Silva Santos",
-                "Práticas Pedagógicas na Educação Infantil (Shirley Santos)",
+                "Motrocidade Livre",
                 Map.ofEntries(
                         Map.entry("MONTANARO", 2), Map.entry("LEBLON", 1), Map.entry("IMBUIAS", 1), Map.entry("BELA_VISTA", 2),
                         Map.entry("SABIAS", 1), Map.entry("ACACIAS", 2), Map.entry("ORQUIDEAS", 3), Map.entry("CEDRO", 1),
