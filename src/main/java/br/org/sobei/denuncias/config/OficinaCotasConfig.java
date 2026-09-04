@@ -305,7 +305,10 @@ public final class OficinaCotasConfig {
 
     public static String normalizarTexto(String texto) {
         if (texto == null) return "";
-        return removerAcentos(texto.toLowerCase().trim()).replaceAll("\\s+", " ");
+        return removerAcentos(texto.toLowerCase().trim())
+                .replaceAll("\\s+", " ")
+                .replaceAll("[.,;:!?]+$", "")
+                .trim();
     }
 
     private static String removerAcentos(String str) {
