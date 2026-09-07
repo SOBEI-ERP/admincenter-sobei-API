@@ -76,33 +76,22 @@ public class DenunciaAdminService {
 
         List<Denuncia> denuncias = denunciaRepository.findAll(spec, sort);
 
-        if ("maior_prioridade".equalsIgnoreCase(prioridadeOrdem)) {
-            denuncias.sort((d1, d2) -> {
-                int w1 = getPrioridadeWeight(d1.getPrioridade());
-                int w2 = getPrioridadeWeight(d2.getPrioridade());
-                if (w1 != w2) {
-                    return Integer.compare(w2, w1);
-                }
-                if ("antigos".equalsIgnoreCase(ordem)) {
-                    return d1.getDataAbertura().compareTo(d2.getDataAbertura());
-                } else {
-                    return d2.getDataAbertura().compareTo(d1.getDataAbertura());
-                }
-            });
-        } else if ("menor_prioridade".equalsIgnoreCase(prioridadeOrdem)) {
-            denuncias.sort((d1, d2) -> {
-                int w1 = getPrioridadeWeight(d1.getPrioridade());
-                int w2 = getPrioridadeWeight(d2.getPrioridade());
-                if (w1 != w2) {
-                    return Integer.compare(w1, w2);
-                }
-                if ("antigos".equalsIgnoreCase(ordem)) {
-                    return d1.getDataAbertura().compareTo(d2.getDataAbertura());
-                } else {
-                    return d2.getDataAbertura().compareTo(d1.getDataAbertura());
-                }
-            });
-        }
+        // Ordenação prioritária automática: maior prioridade sempre no topo (ALTA > MEDIA > BAIXA > NEUTRA)
+        // Desempate de mesma prioridade pela data de abertura (ordem)
+        denuncias.sort((d1, d2) -> {
+            int w1 = getPrioridadeWeight(d1.getPrioridade());
+            int w2 = getPrioridadeWeight(d2.getPrioridade());
+            if (w1 != w2) {
+                return "menor_prioridade".equalsIgnoreCase(prioridadeOrdem)
+                        ? Integer.compare(w1, w2)
+                        : Integer.compare(w2, w1);
+            }
+            if ("antigos".equalsIgnoreCase(ordem)) {
+                return d1.getDataAbertura().compareTo(d2.getDataAbertura());
+            } else {
+                return d2.getDataAbertura().compareTo(d1.getDataAbertura());
+            }
+        });
 
         if (page != null && size != null && page >= 0 && size > 0) {
             int fromIndex = Math.min(page * size, denuncias.size());
