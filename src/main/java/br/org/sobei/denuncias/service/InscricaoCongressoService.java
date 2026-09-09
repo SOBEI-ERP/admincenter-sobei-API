@@ -28,6 +28,7 @@ public class InscricaoCongressoService {
     private final EmailService emailService;
 
     public static final long LIMITE_GERAL_INSCRICOES = 900L;
+    public static final int COTA_OUTRAS_OSC_POR_OFICINA = 10;
 
     // ---- PÚBLICO ----
 
@@ -280,6 +281,29 @@ public class InscricaoCongressoService {
             }
         }
 
+        // Validação de cota de 10 vagas reservadas para participantes de OUTRAS OSCs (fora SOBEI)
+        // Usuários com nível SUPORTE possuem liberação irrestrita
+        if (admin.getNivel() != NivelAdmin.suporte && novaOficina != null && !"SOBEI".equalsIgnoreCase(inscricao.getTipoOsc())) {
+            String chaveOficinaNova = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(novaOficina);
+
+            long ocupadasOutrasOsc = inscricaoRepository.findAll().stream()
+                    .filter(i -> !i.getId().equals(id))
+                    .filter(i -> !"SOBEI".equalsIgnoreCase(i.getTipoOsc()))
+                    .filter(i -> {
+                        String of = i.getOficina() != null ? i.getOficina() : (i.getOficinaManha() != null ? i.getOficinaManha() : i.getOficinaTarde());
+                        if (of == null) return false;
+                        String chaveOf = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(of);
+                        return chaveOf.equals(chaveOficinaNova) || chaveOf.contains(chaveOficinaNova) || chaveOficinaNova.contains(chaveOf);
+                    })
+                    .count();
+
+            if (ocupadasOutrasOsc >= COTA_OUTRAS_OSC_POR_OFICINA) {
+                throw new IllegalArgumentException(
+                        "A cota desta oficina para participantes de outras OSCs já foi preenchida (" + ocupadasOutrasOsc + "/" + COTA_OUTRAS_OSC_POR_OFICINA + " vagas ocupadas)."
+                );
+            }
+        }
+
         if (request.getOficina() != null) {
             String of = request.getOficina().trim().isBlank() ? null : request.getOficina().trim();
             inscricao.setOficina(of);
@@ -325,13 +349,31 @@ public class InscricaoCongressoService {
 
     @Transactional(readOnly = true)
     public byte[] gerarCertificadoPdf(Integer id, String adminEmail) {
+        Usuario admin = getAdmin(adminEmail);
         InscricaoCongresso inscricao = buscarInscricaoAutorizada(id, adminEmail);
+
+        if (admin.getNivel() == NivelAdmin.credenciador) {
+            boolean checkinAmbosDias = Boolean.TRUE.equals(inscricao.getPresenteDia11()) && Boolean.TRUE.equals(inscricao.getPresenteDia12());
+            if (!checkinAmbosDias) {
+                throw new IllegalArgumentException("Para usuários de nível credenciador, o certificado só fica disponível após a confirmação de check-in em ambos os dias do evento (11 e 12/Set).");
+            }
+        }
+
         return certificadoService.gerarCertificadoPdf(inscricao);
     }
 
     @Transactional(readOnly = true)
     public boolean enviarCertificado(Integer id, String adminEmail) {
+        Usuario admin = getAdmin(adminEmail);
         InscricaoCongresso inscricao = buscarInscricaoAutorizada(id, adminEmail);
+
+        if (admin.getNivel() == NivelAdmin.credenciador) {
+            boolean checkinAmbosDias = Boolean.TRUE.equals(inscricao.getPresenteDia11()) && Boolean.TRUE.equals(inscricao.getPresenteDia12());
+            if (!checkinAmbosDias) {
+                throw new IllegalArgumentException("Para usuários de nível credenciador, o envio de certificado só fica disponível após a confirmação de check-in em ambos os dias do evento (11 e 12/Set).");
+            }
+        }
+
         byte[] pdfBytes = certificadoService.gerarCertificadoPdf(inscricao);
         return emailService.enviarCertificadoCongresso(inscricao, pdfBytes);
     }

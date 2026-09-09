@@ -230,6 +230,98 @@ class InscricaoCongressoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve rejeitar atualização quando cota de 10 vagas para outras OSCs já foi atingida")
+    void deveRejeitarAtualizacaoQuandoCotaOutrasOscAtingida() {
+        Usuario admin = Usuario.builder()
+                .id(3)
+                .usuario("diretora")
+                .email("diretora@sobei.org.br")
+                .nivel(NivelAdmin.diretora)
+                .build();
+
+        InscricaoCongresso inscricaoAlvo = InscricaoCongresso.builder()
+                .id(99)
+                .nomeCompleto("Participante Outra OSC")
+                .email("outra@ong.org.br")
+                .tipoOsc("OUTRA")
+                .outraOsc("Instituto Cidadão")
+                .build();
+
+        java.util.List<InscricaoCongresso> existentes = new java.util.ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            existentes.add(InscricaoCongresso.builder()
+                    .id(i)
+                    .nomeCompleto("Participante " + i)
+                    .tipoOsc("OUTRA")
+                    .outraOsc("OSC " + i)
+                    .oficina("Quem dança seus males espanta!")
+                    .build());
+        }
+        existentes.add(inscricaoAlvo);
+
+        when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(inscricaoRepository.findById(99)).thenReturn(Optional.of(inscricaoAlvo));
+        when(inscricaoRepository.findAll()).thenReturn(existentes);
+
+        br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
+                .oficina("Quem dança seus males espanta!")
+                .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                inscricaoService.atualizarOficinas(99, req, "diretora@sobei.org.br")
+        );
+
+        assertTrue(ex.getMessage().contains("outras OSCs"));
+        assertTrue(ex.getMessage().contains("10/10"));
+        verify(inscricaoRepository, never()).save(inscricaoAlvo);
+    }
+
+    @Test
+    @DisplayName("Deve permitir atualização quando cota de 10 vagas para outras OSCs estiver atingida se usuário for SUPORTE")
+    void devePermitirAtualizacaoQuandoCotaOutrasOscAtingidaSeUsuarioForSuporte() {
+        Usuario suporte = Usuario.builder()
+                .id(1)
+                .usuario("suporte")
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+
+        InscricaoCongresso inscricaoAlvo = InscricaoCongresso.builder()
+                .id(99)
+                .nomeCompleto("Participante Outra OSC")
+                .email("outra@ong.org.br")
+                .tipoOsc("OUTRA")
+                .outraOsc("Instituto Cidadão")
+                .build();
+
+        java.util.List<InscricaoCongresso> existentes = new java.util.ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            existentes.add(InscricaoCongresso.builder()
+                    .id(i)
+                    .nomeCompleto("Participante " + i)
+                    .tipoOsc("OUTRA")
+                    .outraOsc("OSC " + i)
+                    .oficina("Quem dança seus males espanta!")
+                    .build());
+        }
+        existentes.add(inscricaoAlvo);
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(suporte));
+        when(inscricaoRepository.findById(99)).thenReturn(Optional.of(inscricaoAlvo));
+        when(inscricaoRepository.save(any(InscricaoCongresso.class))).thenAnswer(i -> i.getArgument(0));
+
+        br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
+                .oficina("Quem dança seus males espanta!")
+                .build();
+
+        InscricaoCongressoResponse res = inscricaoService.atualizarOficinas(99, req, "suporte@sobei.org.br");
+
+        assertNotNull(res);
+        assertEquals("Quem dança seus males espanta!", res.getOficina());
+        verify(inscricaoRepository, times(1)).save(inscricaoAlvo);
+    }
+
+    @Test
     @DisplayName("Deve rejeitar criação de inscrição quando limite global de 900 for atingido")
     void deveRejeitarCriacaoQuandoLimite900Atingido() {
         when(inscricaoRepository.count()).thenReturn(900L);
@@ -303,5 +395,99 @@ class InscricaoCongressoServiceTest {
 
         assertTrue(ex.getMessage().contains("Suporte"));
         verify(inscricaoRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear geração e envio de certificado para credenciador quando não houver check-in em ambos os dias")
+    void deveBloquearCertificadoParaCredenciadorSemCheckinAmbosDias() {
+        Usuario credenciador = Usuario.builder()
+                .id(2)
+                .email("credenciador@sobei.org.br")
+                .nivel(NivelAdmin.credenciador)
+                .build();
+
+        InscricaoCongresso inscricao = InscricaoCongresso.builder()
+                .id(50)
+                .nomeCompleto("Aluno Participante")
+                .email("aluno@sobei.org.br")
+                .presenteDia11(true)
+                .presenteDia12(false)
+                .build();
+
+        when(usuarioRepository.findByEmail("credenciador@sobei.org.br")).thenReturn(Optional.of(credenciador));
+        when(inscricaoRepository.findById(50)).thenReturn(Optional.of(inscricao));
+
+        IllegalArgumentException exGerar = assertThrows(IllegalArgumentException.class,
+                () -> inscricaoService.gerarCertificadoPdf(50, "credenciador@sobei.org.br")
+        );
+        assertTrue(exGerar.getMessage().contains("ambos os dias"));
+
+        IllegalArgumentException exEnviar = assertThrows(IllegalArgumentException.class,
+                () -> inscricaoService.enviarCertificado(50, "credenciador@sobei.org.br")
+        );
+        assertTrue(exEnviar.getMessage().contains("ambos os dias"));
+
+        verify(certificadoService, never()).gerarCertificadoPdf(any());
+        verify(emailService, never()).enviarCertificadoCongresso(any(), any());
+    }
+
+    @Test
+    @DisplayName("Deve permitir geração e envio de certificado para credenciador quando houver check-in em ambos os dias")
+    void devePermitirCertificadoParaCredenciadorComCheckinAmbosDias() {
+        Usuario credenciador = Usuario.builder()
+                .id(2)
+                .email("credenciador@sobei.org.br")
+                .nivel(NivelAdmin.credenciador)
+                .build();
+
+        InscricaoCongresso inscricao = InscricaoCongresso.builder()
+                .id(50)
+                .nomeCompleto("Aluno Presente Ambos Dias")
+                .email("aluno@sobei.org.br")
+                .presenteDia11(true)
+                .presenteDia12(true)
+                .build();
+
+        byte[] pdfBytes = new byte[]{1, 2, 3};
+        when(usuarioRepository.findByEmail("credenciador@sobei.org.br")).thenReturn(Optional.of(credenciador));
+        when(inscricaoRepository.findById(50)).thenReturn(Optional.of(inscricao));
+        when(certificadoService.gerarCertificadoPdf(inscricao)).thenReturn(pdfBytes);
+        when(emailService.enviarCertificadoCongresso(inscricao, pdfBytes)).thenReturn(true);
+
+        byte[] gerado = inscricaoService.gerarCertificadoPdf(50, "credenciador@sobei.org.br");
+        assertNotNull(gerado);
+
+        boolean enviado = inscricaoService.enviarCertificado(50, "credenciador@sobei.org.br");
+        assertTrue(enviado);
+
+        verify(certificadoService, times(2)).gerarCertificadoPdf(inscricao);
+        verify(emailService, times(1)).enviarCertificadoCongresso(inscricao, pdfBytes);
+    }
+
+    @Test
+    @DisplayName("Deve permitir geração de certificado para perfil suporte mesmo sem check-in em ambos os dias")
+    void devePermitirCertificadoParaSuporteMesmoSemCheckinAmbosDias() {
+        Usuario suporte = Usuario.builder()
+                .id(1)
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+
+        InscricaoCongresso inscricao = InscricaoCongresso.builder()
+                .id(50)
+                .nomeCompleto("Participante Pendente")
+                .email("pendente@sobei.org.br")
+                .presenteDia11(false)
+                .presenteDia12(false)
+                .build();
+
+        byte[] pdfBytes = new byte[]{1, 2, 3};
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(suporte));
+        when(inscricaoRepository.findById(50)).thenReturn(Optional.of(inscricao));
+        when(certificadoService.gerarCertificadoPdf(inscricao)).thenReturn(pdfBytes);
+
+        byte[] gerado = inscricaoService.gerarCertificadoPdf(50, "suporte@sobei.org.br");
+        assertNotNull(gerado);
+        verify(certificadoService, times(1)).gerarCertificadoPdf(inscricao);
     }
 }
