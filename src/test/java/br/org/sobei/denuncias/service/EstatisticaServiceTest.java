@@ -198,5 +198,34 @@ class EstatisticaServiceTest {
         assertEquals(1, res.getEvolucaoInscricoes().get(1).getNoDia());
         assertEquals(3, res.getEvolucaoInscricoes().get(1).getAcumulado());
     }
+
+    @Test
+    void testAgrupamentoOutrasOscsVariaveis() {
+        InscricaoCongresso o1 = InscricaoCongresso.builder().id(10).tipoOsc("OUTRA").outraOsc("CT-Vidas").build();
+        InscricaoCongresso o2 = InscricaoCongresso.builder().id(11).tipoOsc("OUTRA").outraOsc("CT Vidas").build();
+        InscricaoCongresso o3 = InscricaoCongresso.builder().id(12).tipoOsc("OUTRA").outraOsc("CTVidas - Centro de Treinamento das Vidas").build();
+        InscricaoCongresso o4 = InscricaoCongresso.builder().id(13).tipoOsc("OUTRA").outraOsc("Ct-vidas").build();
+        InscricaoCongresso o5 = InscricaoCongresso.builder().id(14).tipoOsc("OUTRA").outraOsc("Instituto Sonho").build();
+
+        when(inscricaoRepository.findAll()).thenReturn(Arrays.asList(o1, o2, o3, o4, o5));
+
+        EstatisticaCongressoResponse res = estatisticaService.obterEstatisticasCongresso();
+
+        assertNotNull(res);
+        assertEquals(5, res.getTotalInscritos());
+        assertEquals(5, res.getTotalOutrasOsc());
+
+        // Deve unificar as 4 variações de CT-Vidas em 1 único grupo com 4 inscritos
+        assertEquals(2, res.getPorOutraOsc().size());
+
+        var ctVidas = res.getPorOutraOsc().stream()
+                .filter(o -> o.getNomeOsc().toLowerCase().contains("vidas"))
+                .findFirst()
+                .orElse(null);
+
+        assertNotNull(ctVidas);
+        assertEquals(4, ctVidas.getTotalInscritos());
+        assertEquals(80.0, ctVidas.getPercentualOutras());
+    }
 }
 

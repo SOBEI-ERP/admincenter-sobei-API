@@ -19,9 +19,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -250,26 +253,8 @@ public class EstatisticaService {
                 .sorted(Comparator.comparingLong(EstatisticaCongressoResponse.OficinaCongressoStat::getTotalInscritos).reversed())
                 .collect(Collectors.toList());
 
-        // 3. Outras OSCs
-        Map<String, Long> porOutraOscMap = todas.stream()
-                .filter(i -> !"SOBEI".equalsIgnoreCase(i.getTipoOsc()))
-                .collect(Collectors.groupingBy(i -> {
-                    String o = i.getOutraOsc();
-                    if (o == null || o.isBlank()) return "Outras Instituições";
-                    return o.trim();
-                }, Collectors.counting()));
-
-        List<EstatisticaCongressoResponse.OutraOscStat> porOutraOsc = porOutraOscMap.entrySet().stream()
-                .map(e -> {
-                    double part = totalOutrasOsc > 0 ? Math.round(((double) e.getValue() / totalOutrasOsc * 100) * 10.0) / 10.0 : 0.0;
-                    return EstatisticaCongressoResponse.OutraOscStat.builder()
-                            .nomeOsc(e.getKey())
-                            .totalInscritos(e.getValue())
-                            .percentualOutras(part)
-                            .build();
-                })
-                .sorted(Comparator.comparingLong(EstatisticaCongressoResponse.OutraOscStat::getTotalInscritos).reversed())
-                .collect(Collectors.toList());
+        // 3. Outras OSCs (unificando pequenas variações de nomes como CT-Vidas, CT Vidas, etc.)
+        List<EstatisticaCongressoResponse.OutraOscStat> porOutraOsc = agruparOutrasOscs(todas, totalOutrasOsc);
 
         // 4. Evolução Temporal (Gráfico de Crescimento)
         DateTimeFormatter dtfDiaMes = DateTimeFormatter.ofPattern("dd/MM");
@@ -338,6 +323,112 @@ public class EstatisticaService {
         if (chave.contains(chaveTema) || chaveTema.contains(chave)) return true;
         if (chaveMin.length() >= 8 && (chave.contains(chaveMin) || chaveMin.contains(chave))) return true;
         return false;
+    }
+
+    /**
+     * Unifica variações e pequenas diferenças no nome de outras instituições (ex: CT-Vidas, CT Vidas, CTVidas, etc.)
+     */
+    private List<EstatisticaCongressoResponse.OutraOscStat> agruparOutrasOscs(List<InscricaoCongresso> todas, long totalOutrasOsc) {
+        List<InscricaoCongresso> outrasInscricoes = todas.stream()
+                .filter(i -> !"SOBEI".equalsIgnoreCase(i.getTipoOsc()))
+                .toList();
+
+        if (outrasInscricoes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Agrupa por chave canônica
+        Map<String, List<String>> gruposChave = new HashMap<>();
+        for (InscricaoCongresso insc : outrasInscricoes) {
+            String raw = insc.getOutraOsc();
+            if (raw == null || raw.trim().isBlank()) {
+                raw = "Outras Instituições";
+            } else {
+                raw = raw.trim();
+            }
+            String chave = gerarChaveCanonicaOsc(raw);
+            gruposChave.computeIfAbsent(chave, k -> new ArrayList<>()).add(raw);
+        }
+
+        List<EstatisticaCongressoResponse.OutraOscStat> resultado = new ArrayList<>();
+        for (Map.Entry<String, List<String>> entry : gruposChave.entrySet()) {
+            List<String> ocorrencias = entry.getValue();
+            long total = ocorrencias.size();
+            String nomeEscolhido = escolherMelhorNomeOsc(ocorrencias);
+            double part = totalOutrasOsc > 0
+                    ? Math.round(((double) total / totalOutrasOsc * 100) * 10.0) / 10.0
+                    : 0.0;
+
+            resultado.add(EstatisticaCongressoResponse.OutraOscStat.builder()
+                    .nomeOsc(nomeEscolhido)
+                    .totalInscritos(total)
+                    .percentualOutras(part)
+                    .build());
+        }
+
+        resultado.sort(Comparator.comparingLong(EstatisticaCongressoResponse.OutraOscStat::getTotalInscritos).reversed());
+        return resultado;
+    }
+
+    private String gerarChaveCanonicaOsc(String raw) {
+        if (raw == null || raw.trim().isBlank()) {
+            return "outras";
+        }
+        // 1. Remover acentos
+        String semAcento = Normalizer.normalize(raw.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase();
+
+        // 2. Se houver sigla/código entre parênteses, ex: 'Centro de Treinamento (CT-Vidas)'
+        Matcher parenMatcher = Pattern.compile("\\((.*?)\\)").matcher(semAcento);
+        if (parenMatcher.find()) {
+            String inside = parenMatcher.group(1).replaceAll("[^a-z0-9]", "");
+            if (inside.length() >= 2 && inside.length() <= 12) {
+                return inside;
+            }
+        }
+
+        // 3. Se houver separador de cláusula com espaços, ex: 'CTVidas - Centro de Treinamento das Vidas'
+        String[] partes = semAcento.split("\\s+[-/|:]\\s+");
+        String principal = partes[0].trim();
+
+        // 4. Remover pontuação e manter apenas caracteres alfanuméricos
+        String alfa = principal.replaceAll("[^a-z0-9]", "");
+        return alfa.isEmpty() ? "outras" : alfa;
+    }
+
+    private String escolherMelhorNomeOsc(List<String> nomes) {
+        if (nomes == null || nomes.isEmpty()) return "Outras Instituições";
+
+        // Contagem de frequência
+        Map<String, Long> contagens = nomes.stream()
+                .collect(Collectors.groupingBy(s -> s, Collectors.counting()));
+
+        // Seleciona o melhor nome baseado em pontuação
+        return contagens.keySet().stream()
+                .max((a, b) -> {
+                    long scoreA = contagens.get(a) * 10L;
+                    long scoreB = contagens.get(b) * 10L;
+
+                    // Prefere nomes sem separadores longos como " - "
+                    if (a.contains(" - ")) scoreA -= 5L;
+                    if (b.contains(" - ")) scoreB -= 5L;
+
+                    // Prefere siglas em caixa alta (ex: CT)
+                    if (a.matches(".*\\b[A-Z]{2,}\\b.*")) scoreA += 3L;
+                    if (b.matches(".*\\b[A-Z]{2,}\\b.*")) scoreB += 3L;
+
+                    // Prefere primeira letra maiúscula
+                    if (Character.isUpperCase(a.charAt(0))) scoreA += 2L;
+                    if (Character.isUpperCase(b.charAt(0))) scoreB += 2L;
+
+                    if (scoreA != scoreB) {
+                        return Long.compare(scoreA, scoreB);
+                    }
+                    // Em caso de empate, tamanho mais conciso
+                    return Integer.compare(b.length(), a.length());
+                })
+                .orElse(nomes.get(0));
     }
 }
 
