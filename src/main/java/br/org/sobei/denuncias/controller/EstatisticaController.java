@@ -33,4 +33,12 @@ public class EstatisticaController {
     ) {
         return ResponseEntity.ok(estatisticaService.obterEstatisticas(tipo, unidade, dataInicio, dataFim));
     }
+
+    @Operation(summary = "Obter estatísticas consolidadas do Congresso SOBEI 2026", description = "Retorna métricas gerais de inscritos, lotação de oficinas, evolução temporal, unidades e comparativo SOBEI vs Outras OSCs. Exclusivo para perfil SUPORTE.")
+    @GetMapping("/congresso")
+    @PreAuthorize("hasRole('SUPORTE')")
+    public ResponseEntity<br.org.sobei.denuncias.dto.response.EstatisticaCongressoResponse> getEstatisticasCongresso() {
+        return ResponseEntity.ok(estatisticaService.obterEstatisticasCongresso());
+    }
 }
+

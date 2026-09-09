@@ -5,6 +5,9 @@ import br.org.sobei.denuncias.dto.response.EstatisticaResponse;
 import br.org.sobei.denuncias.model.entity.Denuncia;
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
+import br.org.sobei.denuncias.dto.response.EstatisticaCongressoResponse;
+import br.org.sobei.denuncias.model.entity.InscricaoCongresso;
+import br.org.sobei.denuncias.repository.InscricaoCongressoRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CompoundSelection;
@@ -18,8 +21,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,8 +36,12 @@ class EstatisticaServiceTest {
     @Mock
     private EntityManager entityManager;
 
+    @Mock
+    private InscricaoCongressoRepository inscricaoRepository;
+
     @InjectMocks
     private EstatisticaService estatisticaService;
+
 
     @Test
     void testObterEstatisticasVazio() {
@@ -89,4 +98,105 @@ class EstatisticaServiceTest {
         assertEquals(1L, response.getDistribuicao().getPrioridades().stream()
                 .filter(p -> p.getName().equals("ALTA")).findFirst().get().getValue());
     }
+
+    @Test
+    void testObterEstatisticasCongressoVazio() {
+        when(inscricaoRepository.findAll()).thenReturn(Collections.emptyList());
+
+        EstatisticaCongressoResponse res = estatisticaService.obterEstatisticasCongresso();
+
+        assertNotNull(res);
+        assertEquals(0, res.getTotalInscritos());
+        assertEquals(900, res.getLimiteVagas());
+        assertEquals(0.0, res.getPercentualPreenchimento());
+        assertEquals(0, res.getTotalSobei());
+        assertEquals(0, res.getTotalOutrasOsc());
+        assertEquals(0, res.getTotalComOficina());
+        assertEquals(0, res.getTotalSemOficina());
+        assertTrue(res.getPorUnidade().isEmpty());
+        assertEquals(23, res.getPorOficina().size()); // 23 oficinas mapeadas
+        assertTrue(res.getPorOutraOsc().isEmpty());
+        assertTrue(res.getEvolucaoInscricoes().isEmpty());
+    }
+
+    @Test
+    void testObterEstatisticasCongressoComDados() {
+        InscricaoCongresso i1 = InscricaoCongresso.builder()
+                .id(1)
+                .nomeCompleto("Maria da Silva")
+                .tipoOsc("SOBEI")
+                .unidade("Montanaro")
+                .oficina("Quem dança seus males espanta!")
+                .presente(true)
+                .presenteDia11(true)
+                .presenteDia12(true)
+                .dataInscricao(LocalDateTime.of(2026, 8, 1, 10, 0))
+                .build();
+
+        InscricaoCongresso i2 = InscricaoCongresso.builder()
+                .id(2)
+                .nomeCompleto("João Santos")
+                .tipoOsc("SOBEI")
+                .unidade("Leblon")
+                .oficina(null)
+                .presente(true)
+                .presenteDia11(true)
+                .presenteDia12(false)
+                .dataInscricao(LocalDateTime.of(2026, 8, 1, 14, 30))
+                .build();
+
+        InscricaoCongresso i3 = InscricaoCongresso.builder()
+                .id(3)
+                .nomeCompleto("Ana Oliveira")
+                .tipoOsc("OUTRA")
+                .outraOsc("Creche Amiga")
+                .oficina("Quem dança seus males espanta!")
+                .presente(false)
+                .presenteDia11(false)
+                .presenteDia12(false)
+                .dataInscricao(LocalDateTime.of(2026, 8, 2, 9, 15))
+                .build();
+
+        when(inscricaoRepository.findAll()).thenReturn(Arrays.asList(i1, i2, i3));
+
+        EstatisticaCongressoResponse res = estatisticaService.obterEstatisticasCongresso();
+
+        assertNotNull(res);
+        assertEquals(3, res.getTotalInscritos());
+        assertEquals(2, res.getTotalSobei());
+        assertEquals(1, res.getTotalOutrasOsc());
+        assertEquals(2, res.getTotalComOficina());
+        assertEquals(1, res.getTotalSemOficina());
+        assertEquals(2, res.getPresentesGeral());
+        assertEquals(2, res.getPresentesDia11());
+        assertEquals(1, res.getPresentesDia12());
+        assertEquals(1, res.getPresentesAmbosDias());
+
+        // Valida Unidades
+        assertEquals(2, res.getPorUnidade().size());
+
+        // Valida Outras OSCs
+        assertEquals(1, res.getPorOutraOsc().size());
+        assertEquals("Creche Amiga", res.getPorOutraOsc().get(0).getNomeOsc());
+        assertEquals(1, res.getPorOutraOsc().get(0).getTotalInscritos());
+
+        // Valida Oficinas
+        assertEquals(23, res.getPorOficina().size());
+        var oficinaDanca = res.getPorOficina().stream()
+                .filter(o -> o.getMinistrante().contains("Rodrigo"))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(oficinaDanca);
+        assertEquals(2, oficinaDanca.getTotalInscritos());
+        assertEquals(1, oficinaDanca.getInscritosSobei());
+        assertEquals(1, oficinaDanca.getInscritosOutrasOsc());
+
+        // Valida Evolução temporal (2 dias diferentes)
+        assertEquals(2, res.getEvolucaoInscricoes().size());
+        assertEquals(2, res.getEvolucaoInscricoes().get(0).getNoDia());
+        assertEquals(2, res.getEvolucaoInscricoes().get(0).getAcumulado());
+        assertEquals(1, res.getEvolucaoInscricoes().get(1).getNoDia());
+        assertEquals(3, res.getEvolucaoInscricoes().get(1).getAcumulado());
+    }
 }
+
