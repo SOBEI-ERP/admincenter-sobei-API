@@ -139,8 +139,55 @@ class InscricaoCongressoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve rejeitar atualização quando a cota da unidade na oficina já foi atingida")
+    @DisplayName("Deve rejeitar atualização quando a cota da unidade na oficina já foi atingida para usuário não-suporte")
     void deveRejeitarAtualizacaoQuandoCotaUnidadeAtingida() {
+        Usuario admin = Usuario.builder()
+                .id(2)
+                .usuario("coordenadora")
+                .email("coordenadora@sobei.org.br")
+                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.coordenadora)
+                .unidade("CEI Leblon")
+                .build();
+
+        InscricaoCongresso inscricaoAlvo = InscricaoCongresso.builder()
+                .id(10)
+                .nomeCompleto("Professora 2")
+                .cpf("222.222.222-22")
+                .email("prof2@sobei.org.br")
+                .tipoOsc("SOBEI")
+                .unidade("CEI Leblon")
+                .build();
+
+        InscricaoCongresso inscricaoJaAlocada = InscricaoCongresso.builder()
+                .id(9)
+                .nomeCompleto("Professora 1")
+                .cpf("111.111.111-11")
+                .email("prof1@sobei.org.br")
+                .tipoOsc("SOBEI")
+                .unidade("CEI Leblon")
+                .oficina("Cleide Derenzi Valadas")
+                .build();
+
+        when(usuarioRepository.findByEmail("coordenadora@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(inscricaoRepository.findById(10)).thenReturn(Optional.of(inscricaoAlvo));
+        when(inscricaoRepository.findAll()).thenReturn(List.of(inscricaoJaAlocada, inscricaoAlvo));
+
+        br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
+                .oficina("Cleide Derenzi Valadas")
+                .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                inscricaoService.atualizarOficinas(10, req, "coordenadora@sobei.org.br")
+        );
+
+        assertTrue(ex.getMessage().contains("A cota desta oficina para a unidade"));
+        assertTrue(ex.getMessage().contains("já foi preenchida"));
+        verify(inscricaoRepository, never()).save(inscricaoAlvo);
+    }
+
+    @Test
+    @DisplayName("Deve permitir atualização de oficina mesmo quando a cota da unidade estiver atingida se usuário for SUPORTE")
+    void devePermitirAtualizacaoMesmoComCotaAtingidaQuandoUsuarioForSuporte() {
         Usuario admin = Usuario.builder()
                 .id(1)
                 .usuario("suporte")
@@ -169,19 +216,17 @@ class InscricaoCongressoServiceTest {
 
         when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
         when(inscricaoRepository.findById(10)).thenReturn(Optional.of(inscricaoAlvo));
-        when(inscricaoRepository.findAll()).thenReturn(List.of(inscricaoJaAlocada, inscricaoAlvo));
+        when(inscricaoRepository.save(any(InscricaoCongresso.class))).thenAnswer(i -> i.getArgument(0));
 
         br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
                 .oficina("Cleide Derenzi Valadas")
                 .build();
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                inscricaoService.atualizarOficinas(10, req, "suporte@sobei.org.br")
-        );
+        InscricaoCongressoResponse res = inscricaoService.atualizarOficinas(10, req, "suporte@sobei.org.br");
 
-        assertTrue(ex.getMessage().contains("A cota desta oficina para a unidade"));
-        assertTrue(ex.getMessage().contains("já foi preenchida"));
-        verify(inscricaoRepository, never()).save(inscricaoAlvo);
+        assertNotNull(res);
+        assertEquals("Cleide Derenzi Valadas", res.getOficina());
+        verify(inscricaoRepository, times(1)).save(inscricaoAlvo);
     }
 
     @Test

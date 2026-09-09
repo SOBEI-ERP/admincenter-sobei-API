@@ -239,6 +239,7 @@ public class InscricaoCongressoService {
 
     @Transactional
     public InscricaoCongressoResponse atualizarOficinas(Integer id, AtualizarOficinasRequest request, String adminEmail) {
+        Usuario admin = getAdmin(adminEmail);
         InscricaoCongresso inscricao = buscarInscricaoAutorizada(id, adminEmail);
 
         String novaOficina = null;
@@ -251,7 +252,8 @@ public class InscricaoCongressoService {
         }
 
         // Validação de cota máxima da unidade para participantes SOBEI
-        if (novaOficina != null && "SOBEI".equalsIgnoreCase(inscricao.getTipoOsc())) {
+        // Usuários com nível SUPORTE possuem liberação irrestrita (sem limite de inscrição em nenhuma oficina)
+        if (admin.getNivel() != NivelAdmin.suporte && novaOficina != null && "SOBEI".equalsIgnoreCase(inscricao.getTipoOsc())) {
             int cota = br.org.sobei.denuncias.config.OficinaCotasConfig.obterCotaUnidade(novaOficina, inscricao.getUnidade());
             if (cota < 999) {
                 String chaveOficinaNova = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(novaOficina);
