@@ -18,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Mensagens de Unidades (Admin)", description = "Gestão de mensagens das unidades por diretoras, coordenadoras e suporte")
 @SecurityRequirement(name = "BearerAuth")
-@PreAuthorize("hasAnyRole('DIRETORA', 'COORDENADORA', 'SUPORTE')")
+@PreAuthorize("hasAnyRole('DIRETORA', 'COORDENADORA', 'COORDENADORA_EVENTO', 'SUPORTE')")
 public class MensagemUnidadeAdminController {
 
     private final MensagemUnidadeService mensagemUnidadeService;

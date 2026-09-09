@@ -45,7 +45,8 @@ public class MensagemUnidadeService {
         Usuario admin = getAdmin(adminEmail);
 
         List<MensagemUnidade> mensagens;
-        if (admin.getNivel() == NivelAdmin.suporte) {
+        if (admin.getNivel() == NivelAdmin.suporte ||
+            (admin.getNivel() == NivelAdmin.coordenadora_evento && (admin.getUnidade() == null || admin.getUnidade().isBlank()))) {
             if (unidadeFiltro != null && !unidadeFiltro.isBlank()) {
                 if (Boolean.TRUE.equals(apenasNaoLidas)) {
                     mensagens = mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseAndLidaOrderByDataEnvioDesc(unidadeFiltro, false);
@@ -61,7 +62,9 @@ public class MensagemUnidadeService {
             }
         } else {
             validarDiretoraOuCoordenadora(admin);
-            if (Boolean.TRUE.equals(apenasNaoLidas)) {
+            if (admin.getUnidade() == null || admin.getUnidade().isBlank()) {
+                mensagens = List.of();
+            } else if (Boolean.TRUE.equals(apenasNaoLidas)) {
                 mensagens = mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseAndLidaOrderByDataEnvioDesc(admin.getUnidade(), false);
             } else {
                 mensagens = mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseOrderByDataEnvioDesc(admin.getUnidade());
@@ -78,9 +81,9 @@ public class MensagemUnidadeService {
         MensagemUnidade mensagem = mensagemUnidadeRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada."));
 
-        if (admin.getNivel() != NivelAdmin.suporte) {
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.coordenadora_evento) {
             validarDiretoraOuCoordenadora(admin);
-            if (!unidadeCombina(mensagem.getUnidade(), admin.getUnidade())) {
+            if (admin.getUnidade() != null && !admin.getUnidade().isBlank() && !unidadeCombina(mensagem.getUnidade(), admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para alterar mensagens desta unidade.");
             }
         }
@@ -97,9 +100,9 @@ public class MensagemUnidadeService {
         MensagemUnidade mensagem = mensagemUnidadeRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada."));
 
-        if (admin.getNivel() != NivelAdmin.suporte) {
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.coordenadora_evento) {
             validarDiretoraOuCoordenadora(admin);
-            if (!unidadeCombina(mensagem.getUnidade(), admin.getUnidade())) {
+            if (admin.getUnidade() != null && !admin.getUnidade().isBlank() && !unidadeCombina(mensagem.getUnidade(), admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para excluir mensagens desta unidade.");
             }
         }
@@ -122,10 +125,12 @@ public class MensagemUnidadeService {
     }
 
     private void validarDiretoraOuCoordenadora(Usuario admin) {
-        if (admin.getNivel() != NivelAdmin.diretora && admin.getNivel() != NivelAdmin.coordenadora) {
+        if (admin.getNivel() != NivelAdmin.diretora &&
+            admin.getNivel() != NivelAdmin.coordenadora &&
+            admin.getNivel() != NivelAdmin.coordenadora_evento) {
             throw new IllegalArgumentException("Acesso restrito a diretoras e coordenadoras.");
         }
-        if (admin.getUnidade() == null || admin.getUnidade().isBlank()) {
+        if (admin.getNivel() != NivelAdmin.coordenadora_evento && (admin.getUnidade() == null || admin.getUnidade().isBlank())) {
             throw new IllegalArgumentException("Usuário sem unidade vinculada. Contate o suporte.");
         }
     }
