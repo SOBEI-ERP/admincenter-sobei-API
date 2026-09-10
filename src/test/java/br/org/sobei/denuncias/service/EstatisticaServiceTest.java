@@ -190,6 +190,7 @@ class EstatisticaServiceTest {
         assertEquals(2, oficinaDanca.getTotalInscritos());
         assertEquals(1, oficinaDanca.getInscritosSobei());
         assertEquals(1, oficinaDanca.getInscritosOutrasOsc());
+        assertEquals(66, oficinaDanca.getCapacidadeSala());
 
         // Valida Evolução temporal (2 dias diferentes)
         assertEquals(2, res.getEvolucaoInscricoes().size());
