@@ -27,9 +27,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/vagas")
 @RequiredArgsConstructor
-@Tag(name = "Vagas (Admin/Diretora)", description = "Gerenciamento de vagas por diretoras de unidade")
+@Tag(name = "Vagas (Admin/Diretora/DP)", description = "Gerenciamento de vagas por diretoras de unidade, suporte ou departamento pessoal")
 @SecurityRequirement(name = "BearerAuth")
-@PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE')")
+@PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE', 'DP')")
 public class VagaAdminController {
 
     private final VagaService vagaService;
@@ -71,9 +71,9 @@ public class VagaAdminController {
         return ResponseEntity.ok(vagaService.atualizar(id, request, principal.getName()));
     }
 
-    @Operation(summary = "Excluir vaga", description = "Exclui permanentemente uma vaga e suas candidaturas associadas (incluindo currículos no R2). Acessível para diretora da unidade ou suporte.")
+    @Operation(summary = "Excluir vaga", description = "Exclui permanentemente uma vaga e suas candidaturas associadas (incluindo currículos no R2). Acessível para diretora da unidade, suporte ou DP.")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE')")
+    @PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE', 'DP')")
     public ResponseEntity<Void> deletar(@PathVariable Integer id, Principal principal) {
         vagaService.deletar(id, principal.getName());
         return ResponseEntity.noContent().build();
@@ -97,7 +97,7 @@ public class VagaAdminController {
         Usuario admin = usuarioRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
-        if (admin.getNivel() != NivelAdmin.suporte) {
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.dp) {
             String unidadeCandidatura = candidaturaService.getUnidadeDaCandidatura(candidaturaId);
             if (admin.getUnidade() == null || !unidadeCandidatura.equalsIgnoreCase(admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para acessar este currículo.");

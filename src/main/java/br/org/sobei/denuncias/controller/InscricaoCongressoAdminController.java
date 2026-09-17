@@ -19,7 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Inscrições Congresso (Admin)", description = "Gestão e credenciamento de inscritos no Congresso")
 @SecurityRequirement(name = "BearerAuth")
-@PreAuthorize("hasAnyRole('CREDENCIADOR', 'COORDENADORA', 'COORDENADORA_EVENTO', 'SUPORTE', 'DP', 'DIRETORA')")
+@PreAuthorize("hasAnyRole('CREDENCIADOR', 'COORDENADORA', 'COORDENADORA_EVENTO', 'SUPORTE', 'DIRETORA')")
 public class InscricaoCongressoAdminController {
 
     private final InscricaoCongressoService inscricaoService;
@@ -38,7 +38,7 @@ public class InscricaoCongressoAdminController {
 
     @Operation(summary = "Confirmar ou alternar presença de inscrito", description = "Atualiza o status de presença de um inscrito no evento para o dia 11, dia 12 ou geral.")
     @PatchMapping("/{id}/presenca")
-    @PreAuthorize("hasAnyRole('SUPORTE', 'DP', 'DIRETORA', 'CREDENCIADOR', 'COORDENADORA_EVENTO')")
+    @PreAuthorize("hasAnyRole('SUPORTE', 'DIRETORA', 'CREDENCIADOR', 'COORDENADORA_EVENTO')")
     public ResponseEntity<InscricaoCongressoResponse> alterarPresenca(
             @PathVariable Integer id,
             @Parameter(description = "Dia do evento (11 ou 12)") @RequestParam(required = false) Integer dia,

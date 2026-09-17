@@ -490,4 +490,24 @@ class InscricaoCongressoServiceTest {
         assertNotNull(gerado);
         verify(certificadoService, times(1)).gerarCertificadoPdf(inscricao);
     }
+
+    @Test
+    @DisplayName("Deve negar acesso a inscrições do congresso para perfil DP")
+    void deveNegarAcessoCongressoParaPerfilDp() {
+        Usuario dp = Usuario.builder()
+                .id(10)
+                .email("dp@sobei.org.br")
+                .nivel(NivelAdmin.dp)
+                .build();
+
+        when(usuarioRepository.findByEmail("dp@sobei.org.br")).thenReturn(Optional.of(dp));
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
+            inscricaoService.listar("dp@sobei.org.br", null, null, null, null);
+        });
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
+            inscricaoService.alterarPresenca(1, 11, true, "dp@sobei.org.br");
+        });
+    }
 }

@@ -29,7 +29,7 @@ public class BancoTalentoService {
         Usuario admin = getAdmin(adminEmail);
 
         List<BancoTalento> talentos;
-        if (admin.getNivel() == NivelAdmin.suporte) {
+        if (admin.getNivel() == NivelAdmin.suporte || admin.getNivel() == NivelAdmin.dp) {
             if (unidadeFiltro != null && !unidadeFiltro.isBlank()) {
                 talentos = bancoTalentoRepository.findByVagaUnidadeOrderByDataMovimentacaoDesc(unidadeFiltro);
             } else {
@@ -71,7 +71,7 @@ public class BancoTalentoService {
         List<BancoTalento> talentos = bancoTalentoRepository.findByVagaIdOrderByDataEnvioOriginalDesc(vagaId);
 
         // Validar permissão por unidade
-        if (admin.getNivel() != NivelAdmin.suporte) {
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.dp) {
             validarDiretora(admin);
             if (!talentos.isEmpty()) {
                 String unidadeVaga = talentos.get(0).getVaga().getUnidade();
@@ -102,7 +102,7 @@ public class BancoTalentoService {
         BancoTalento talento = bancoTalentoRepository.findById(talentoId)
                 .orElseThrow(() -> new IllegalArgumentException("Talento não encontrado."));
 
-        if (admin.getNivel() != NivelAdmin.suporte) {
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.dp) {
             validarDiretora(admin);
             if (!talento.getVaga().getUnidade().equalsIgnoreCase(admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para acessar este currículo.");

@@ -38,7 +38,7 @@ public class VagaService {
     public List<VagaResponse> listar(String adminEmail, StatusVaga status, String unidade) {
         Usuario admin = getAdmin(adminEmail);
         
-        if (admin.getNivel() == NivelAdmin.suporte) {
+        if (admin.getNivel() == NivelAdmin.suporte || admin.getNivel() == NivelAdmin.dp) {
             List<Vaga> vagas;
             if (unidade != null && !unidade.isBlank()) {
                 if (status != null) {
@@ -73,7 +73,7 @@ public class VagaService {
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        if (admin.getNivel() == NivelAdmin.suporte) {
+        if (admin.getNivel() == NivelAdmin.suporte || admin.getNivel() == NivelAdmin.dp) {
             return toResponse(vaga);
         }
 
@@ -90,9 +90,9 @@ public class VagaService {
         Usuario admin = getAdmin(adminEmail);
         
         String unidadeVaga;
-        if (admin.getNivel() == NivelAdmin.suporte) {
+        if (admin.getNivel() == NivelAdmin.suporte || admin.getNivel() == NivelAdmin.dp) {
             if (request.getUnidade() == null || request.getUnidade().isBlank()) {
-                throw new IllegalArgumentException("A unidade é obrigatória para o usuário de suporte.");
+                throw new IllegalArgumentException("A unidade é obrigatória para o usuário de " + (admin.getNivel() == NivelAdmin.dp ? "departamento pessoal" : "suporte") + ".");
             }
             unidadeVaga = request.getUnidade();
         } else {
@@ -128,9 +128,9 @@ public class VagaService {
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        if (admin.getNivel() == NivelAdmin.suporte) {
+        if (admin.getNivel() == NivelAdmin.suporte || admin.getNivel() == NivelAdmin.dp) {
             if (request.getUnidade() == null || request.getUnidade().isBlank()) {
-                throw new IllegalArgumentException("A unidade é obrigatória para o usuário de suporte.");
+                throw new IllegalArgumentException("A unidade é obrigatória para o usuário de " + (admin.getNivel() == NivelAdmin.dp ? "departamento pessoal" : "suporte") + ".");
             }
             vaga.setUnidade(request.getUnidade());
         } else {
@@ -171,7 +171,7 @@ public class VagaService {
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        if (admin.getNivel() != NivelAdmin.suporte) {
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.dp) {
             validarDiretora(admin);
             if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para excluir vagas desta unidade.");
@@ -220,7 +220,7 @@ public class VagaService {
         Vaga vaga = vagaRepository.findById(vagaId)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
 
-        if (admin.getNivel() != NivelAdmin.suporte) {
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.dp) {
             validarDiretora(admin);
             if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
                 throw new IllegalArgumentException("Você não tem permissão para acessar candidaturas desta vaga.");

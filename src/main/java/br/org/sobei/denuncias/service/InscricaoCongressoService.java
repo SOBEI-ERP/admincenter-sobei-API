@@ -10,6 +10,7 @@ import br.org.sobei.denuncias.repository.InscricaoCongressoRepository;
 import br.org.sobei.denuncias.repository.UsuarioRepository;
 import br.org.sobei.denuncias.util.CpfValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -132,6 +133,9 @@ public class InscricaoCongressoService {
     @Transactional(readOnly = true)
     public List<InscricaoCongressoResponse> listar(String adminEmail, String termo, String unidade, String tipoOsc, Boolean presente) {
         Usuario admin = getAdmin(adminEmail);
+        if (admin.getNivel() == NivelAdmin.dp) {
+            throw new AccessDeniedException("Acesso restrito: departamento pessoal não tem acesso às inscrições do congresso.");
+        }
 
         final String fTermo = (termo != null && !termo.trim().isBlank()) ? termo.trim().toLowerCase() : null;
         String rawCpf = (termo != null) ? termo.replaceAll("\\D", "") : null;
@@ -154,7 +158,7 @@ public class InscricaoCongressoService {
                     .collect(Collectors.toList());
         }
 
-        // SUPORTE, DP, DIRETORA, CREDENCIADOR, COORDENADORA_EVENTO -> ACESSO GERAL IRRESTRITO A TUDO
+        // SUPORTE, DIRETORA, CREDENCIADOR, COORDENADORA_EVENTO -> ACESSO GERAL IRRESTRITO A TUDO
         return todas.stream()
                 .filter(i -> filtrarInscricao(i, fTermo, fTermoCpf, fUnidade, fTipoOsc, fPresente))
                 .map(this::toResponse)
@@ -201,6 +205,9 @@ public class InscricaoCongressoService {
     @Transactional
     public InscricaoCongressoResponse alterarPresenca(Integer id, Integer dia, Boolean presente, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
+        if (admin.getNivel() == NivelAdmin.dp) {
+            throw new AccessDeniedException("Acesso restrito: departamento pessoal não tem acesso ao gerenciamento de presença do congresso.");
+        }
 
         InscricaoCongresso inscricao = inscricaoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Inscrição não encontrada."));
@@ -445,6 +452,9 @@ public class InscricaoCongressoService {
 
     private InscricaoCongresso buscarInscricaoAutorizada(Integer id, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
+        if (admin.getNivel() == NivelAdmin.dp) {
+            throw new AccessDeniedException("Acesso restrito: departamento pessoal não tem acesso às inscrições do congresso.");
+        }
         InscricaoCongresso inscricao = inscricaoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Inscrição não encontrada."));
 

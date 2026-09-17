@@ -21,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Banco de Talentos", description = "Consulta de candidaturas arquivadas ao fechar vagas")
 @SecurityRequirement(name = "BearerAuth")
-@PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE')")
+@PreAuthorize("hasAnyRole('DIRETORA', 'SUPORTE', 'DP')")
 public class BancoTalentoController {
 
     private final BancoTalentoService bancoTalentoService;

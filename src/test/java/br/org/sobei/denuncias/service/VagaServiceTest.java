@@ -77,11 +77,11 @@ class VagaServiceTest {
     }
 
     @Test
-    void testCriarVagaSemPermissaoDiretoraThrowsException() {
+    void testCriarVagaSemPermissaoThrowsException() {
         Usuario admin = Usuario.builder()
                 .id(1)
-                .email("dp@sobei.org.br")
-                .nivel(NivelAdmin.dp) // Não é diretora
+                .email("coordenadora@sobei.org.br")
+                .nivel(NivelAdmin.coordenadora) // Não tem permissão para vagas
                 .unidade("Imbuias")
                 .build();
 
@@ -94,6 +94,35 @@ class VagaServiceTest {
         });
 
         verify(vagaRepository, never()).save(any(Vaga.class));
+    }
+
+    @Test
+    void testCriarVagaDpComSucesso() {
+        Usuario admin = Usuario.builder()
+                .id(3)
+                .email("dp@sobei.org.br")
+                .nivel(NivelAdmin.dp)
+                .build();
+
+        CriarVagaRequest request = new CriarVagaRequest();
+        request.setTitulo("Assistente de DP");
+        request.setDepartamento("Recursos Humanos");
+        request.setDescricao("Descrição da vaga DP");
+        request.setRequisitos("Requisitos");
+        request.setModalidade(ModalidadeVaga.PRESENCIAL);
+        request.setTipoContrato(TipoContrato.CLT);
+        request.setUnidade("Matriz");
+
+        when(usuarioRepository.findByEmail("dp@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(vagaRepository.save(any(Vaga.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        VagaResponse response = vagaService.criar(request, "dp@sobei.org.br");
+
+        assertNotNull(response);
+        assertEquals("Assistente de DP", response.getTitulo());
+        assertEquals("Matriz", response.getUnidade());
+
+        verify(vagaRepository, times(1)).save(any(Vaga.class));
     }
 
     @Test
