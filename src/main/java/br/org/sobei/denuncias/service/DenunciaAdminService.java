@@ -38,7 +38,7 @@ public class DenunciaAdminService {
     private final UsuarioRepository usuarioRepository;
 
     @Transactional(readOnly = true)
-    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridadeOrdem, String protocolo, String dataInicio, String dataFim) {
+    public List<DenunciaAdminResponse> listarDenuncias(String status, String tipo, String unidade, String ordem, String prioridadeOrdem, String protocolo, String dataInicio, String dataFim, Integer page, Integer size) {
         Specification<Denuncia> spec = (root, query, cb) -> cb.conjunction();
 
         if (StringUtils.hasText(status)) {
@@ -76,32 +76,27 @@ public class DenunciaAdminService {
 
         List<Denuncia> denuncias = denunciaRepository.findAll(spec, sort);
 
-        if ("maior_prioridade".equalsIgnoreCase(prioridadeOrdem)) {
-            denuncias.sort((d1, d2) -> {
-                int w1 = getPrioridadeWeight(d1.getPrioridade());
-                int w2 = getPrioridadeWeight(d2.getPrioridade());
-                if (w1 != w2) {
-                    return Integer.compare(w2, w1);
-                }
-                if ("antigos".equalsIgnoreCase(ordem)) {
-                    return d1.getDataAbertura().compareTo(d2.getDataAbertura());
-                } else {
-                    return d2.getDataAbertura().compareTo(d1.getDataAbertura());
-                }
-            });
-        } else if ("menor_prioridade".equalsIgnoreCase(prioridadeOrdem)) {
-            denuncias.sort((d1, d2) -> {
-                int w1 = getPrioridadeWeight(d1.getPrioridade());
-                int w2 = getPrioridadeWeight(d2.getPrioridade());
-                if (w1 != w2) {
-                    return Integer.compare(w1, w2);
-                }
-                if ("antigos".equalsIgnoreCase(ordem)) {
-                    return d1.getDataAbertura().compareTo(d2.getDataAbertura());
-                } else {
-                    return d2.getDataAbertura().compareTo(d1.getDataAbertura());
-                }
-            });
+        // Ordenação prioritária automática: maior prioridade sempre no topo (ALTA > MEDIA > BAIXA > NEUTRA)
+        // Desempate de mesma prioridade pela data de abertura (ordem)
+        denuncias.sort((d1, d2) -> {
+            int w1 = getPrioridadeWeight(d1.getPrioridade());
+            int w2 = getPrioridadeWeight(d2.getPrioridade());
+            if (w1 != w2) {
+                return "menor_prioridade".equalsIgnoreCase(prioridadeOrdem)
+                        ? Integer.compare(w1, w2)
+                        : Integer.compare(w2, w1);
+            }
+            if ("antigos".equalsIgnoreCase(ordem)) {
+                return d1.getDataAbertura().compareTo(d2.getDataAbertura());
+            } else {
+                return d2.getDataAbertura().compareTo(d1.getDataAbertura());
+            }
+        });
+
+        if (page != null && size != null && page >= 0 && size > 0) {
+            int fromIndex = Math.min(page * size, denuncias.size());
+            int toIndex = Math.min(fromIndex + size, denuncias.size());
+            denuncias = denuncias.subList(fromIndex, toIndex);
         }
 
         return denuncias.stream()
@@ -128,7 +123,8 @@ public class DenunciaAdminService {
         Denuncia d = denunciaRepository.findByProtocolo(protocolo)
                 .orElseThrow(() -> new IllegalArgumentException("Denúncia não encontrada."));
 
-        StatusDenuncia novoStatus = request.getStatus();
+        StatusDenuncia estadoAnterior = d.getEstado();
+        StatusDenuncia novoStatus = request.getStatus() != null ? request.getStatus() : estadoAnterior;
 
         // Validação de Fechamento/Arquivamento
         if ((novoStatus == StatusDenuncia.FECHADA || novoStatus == StatusDenuncia.ARQUIVADA) 
@@ -178,11 +174,20 @@ public class DenunciaAdminService {
             medidaAdotadaRepository.save(medida);
         }
 
+        // Validação de prioridade antes de alterar o estado
+        if (request.getPrioridade() != null) {
+            if (estadoAnterior != StatusDenuncia.EM_ANDAMENTO && novoStatus != StatusDenuncia.EM_ANDAMENTO) {
+                throw new IllegalArgumentException(
+                        "A prioridade só pode ser alterada quando a denúncia está em andamento.");
+            }
+            d.setPrioridade(request.getPrioridade());
+        }
+
         // Se mudou o status
-        if (d.getEstado() != novoStatus) {
+        if (estadoAnterior != novoStatus) {
             HistoricoEstado historico = HistoricoEstado.builder()
                     .denuncia(d)
-                    .estadoAnterior(d.getEstado())
+                    .estadoAnterior(estadoAnterior)
                     .estadoNovo(novoStatus)
                     .admin(usuarioLogado)
                     .build();
@@ -191,29 +196,53 @@ public class DenunciaAdminService {
             d.setEstado(novoStatus);
         }
 
-        // Se tem relatório e está finalizando
+        // Se tem relatório e está finalizando ou arquivando (ou se já está nesse estado)
         if (StringUtils.hasText(request.getRelatorio()) && 
            (novoStatus == StatusDenuncia.FECHADA || novoStatus == StatusDenuncia.ARQUIVADA)) {
-            ConclusaoDenuncia conclusao = ConclusaoDenuncia.builder()
-                    .denuncia(d)
-                    .relatorio(request.getRelatorio())
-                    .tipoConclusao(request.getTipoConclusao())
-                    .admin(usuarioLogado)
-                    .build();
-            conclusaoDenunciaRepository.save(conclusao);
-        }
-
-
-        if (request.getPrioridade() != null) {
-            if (d.getEstado() != StatusDenuncia.EM_ANDAMENTO && novoStatus != StatusDenuncia.EM_ANDAMENTO) {
-                throw new IllegalArgumentException(
-                        "A prioridade só pode ser alterada quando a denúncia está em andamento.");
+            
+            br.org.sobei.denuncias.model.enums.TipoConclusao tipo = request.getTipoConclusao();
+            if (tipo == null) {
+                tipo = (novoStatus == StatusDenuncia.FECHADA) ? br.org.sobei.denuncias.model.enums.TipoConclusao.FINAL : br.org.sobei.denuncias.model.enums.TipoConclusao.ARQUIVAMENTO;
             }
-            d.setPrioridade(request.getPrioridade());
+
+            ConclusaoDenuncia conclusao = conclusaoDenunciaRepository.findById(d.getId())
+                    .orElseGet(() -> ConclusaoDenuncia.builder()
+                            .denuncia(d)
+                            .build());
+
+            conclusao.setRelatorio(request.getRelatorio());
+            conclusao.setTipoConclusao(tipo);
+            conclusao.setAdmin(usuarioLogado);
+
+            conclusaoDenunciaRepository.save(conclusao);
         }
 
         denunciaRepository.save(d);
         return buscarDetalhes(d.getProtocolo());
+    }
+
+    @Transactional
+    public void deletarDenunciaFechada(String protocolo, String adminEmail) {
+        br.org.sobei.denuncias.model.entity.Usuario usuario = usuarioRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
+
+        if (usuario.getNivel() != br.org.sobei.denuncias.model.enums.NivelAdmin.suporte) {
+            throw new IllegalArgumentException("Apenas usuários com nível SUPORTE podem excluir denúncias fechadas.");
+        }
+
+        Denuncia d = denunciaRepository.findByProtocolo(protocolo)
+                .orElseThrow(() -> new IllegalArgumentException("Denúncia não encontrada."));
+
+        if (d.getEstado() != StatusDenuncia.FECHADA) {
+            throw new IllegalArgumentException("Apenas denúncias com status FECHADA podem ser excluídas.");
+        }
+
+        List<MedidaAdotada> medidas = medidaAdotadaRepository.findByDenunciaIdOrderByDataRegistroAsc(d.getId());
+        if (!medidas.isEmpty()) {
+            medidaAdotadaRepository.deleteAll(medidas);
+        }
+
+        denunciaRepository.delete(d);
     }
 
     private int getPrioridadeWeight(br.org.sobei.denuncias.model.enums.PrioridadeDenuncia prioridade) {

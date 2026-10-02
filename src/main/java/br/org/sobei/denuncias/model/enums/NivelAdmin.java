@@ -8,9 +8,12 @@ import java.util.stream.Stream;
 
 @Getter
 public enum NivelAdmin {
-    admin("admin"),
+    dp("dp"),
     suporte("suporte"),
-    diretora("diretora");
+    diretora("diretora"),
+    credenciador("credenciador"),
+    coordenadora("coordenadora"),
+    coordenadora_evento("coordenadora_evento");
 
     private final String value;
 

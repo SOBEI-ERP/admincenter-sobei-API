@@ -23,9 +23,10 @@ public enum TipoConclusao {
 
     @JsonCreator
     public static TipoConclusao fromValue(String value) {
+        if (value == null || value.isBlank()) return null;
         return Stream.of(TipoConclusao.values())
-                .filter(t -> t.getValue().equalsIgnoreCase(value))
+                .filter(t -> t.getValue().equalsIgnoreCase(value) || t.name().equalsIgnoreCase(value))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Tipo de conclusao invalido: " + value));
+                .orElseThrow(() -> new IllegalArgumentException("Tipo de conclusão inválido: " + value));
     }
 }

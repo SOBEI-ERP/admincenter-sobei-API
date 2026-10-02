@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -21,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Gerenciamento de Denúncias (Admin)", description = "Endpoints administrativos para listagem, detalhamento e fechamento de denúncias.")
 @SecurityRequirement(name = "BearerAuth")
+@PreAuthorize("hasAnyRole('DP', 'SUPORTE')")
 public class DenunciaAdminController {
 
     private final DenunciaAdminService denunciaAdminService;
@@ -35,9 +37,11 @@ public class DenunciaAdminController {
             @Parameter(description = "Ordenação por prioridade (ex: maior_prioridade, menor_prioridade)") @RequestParam(required = false) String prioridadeOrdem,
             @Parameter(description = "Filtrar por Protocolo") @RequestParam(required = false) String protocolo,
             @Parameter(description = "Filtrar por Data Início (yyyy-MM-dd)") @RequestParam(required = false) String dataInicio,
-            @Parameter(description = "Filtrar por Data Fim (yyyy-MM-dd)") @RequestParam(required = false) String dataFim
+            @Parameter(description = "Filtrar por Data Fim (yyyy-MM-dd)") @RequestParam(required = false) String dataFim,
+            @Parameter(description = "Número da página (base 0)") @RequestParam(required = false) Integer page,
+            @Parameter(description = "Tamanho da página (padrão sem limite)") @RequestParam(required = false) Integer size
     ) {
-        return ResponseEntity.ok(denunciaAdminService.listarDenuncias(status, tipo, unidade, ordem, prioridadeOrdem, protocolo, dataInicio, dataFim));
+        return ResponseEntity.ok(denunciaAdminService.listarDenuncias(status, tipo, unidade, ordem, prioridadeOrdem, protocolo, dataInicio, dataFim, page, size));
     }
 
     @Operation(summary = "Buscar detalhes de uma denúncia", description = "Traz o relatório completo da denúncia incluindo histórico e medidas tomadas.")
@@ -55,5 +59,15 @@ public class DenunciaAdminController {
             Principal principal
     ) {
         return ResponseEntity.ok(denunciaAdminService.atualizarDenuncia(protocolo, request, principal.getName()));
+    }
+
+    @Operation(summary = "Excluir Denúncia Fechada", description = "Exclui permanentemente uma denúncia com status FECHADA (Exclusivo para usuários de nível SUPORTE).")
+    @DeleteMapping("/{protocolo}")
+    public ResponseEntity<Void> deletarDenunciaFechada(
+            @Parameter(description = "Protocolo da denúncia") @PathVariable String protocolo,
+            Principal principal
+    ) {
+        denunciaAdminService.deletarDenunciaFechada(protocolo, principal.getName());
+        return ResponseEntity.noContent().build();
     }
 }

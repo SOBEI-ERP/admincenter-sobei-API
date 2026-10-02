@@ -37,18 +37,18 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
     })
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, jakarta.servlet.http.HttpServletRequest servletRequest, HttpServletResponse response) {
         LoginResponse loginResponse = authService.login(request);
 
+        boolean isSecure = servletRequest.isSecure();
         ResponseCookie cookie = ResponseCookie.from("sobei_token", loginResponse.getToken())
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
+                .secure(isSecure)
+                .sameSite(isSecure ? "None" : "Lax")
                 .path("/")
                 .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        // loginResponse.setToken(null); // Mantido para o frontend poder salvar no sessionStorage (guia anônima)
 
         return ResponseEntity.ok(loginResponse);
     }
@@ -58,11 +58,12 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "Logout bem-sucedido")
     })
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, Boolean>> logout(HttpServletResponse response) {
+    public ResponseEntity<Map<String, Boolean>> logout(jakarta.servlet.http.HttpServletRequest servletRequest, HttpServletResponse response) {
+        boolean isSecure = servletRequest.isSecure();
         ResponseCookie cookie = ResponseCookie.from("sobei_token", "")
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
+                .secure(isSecure)
+                .sameSite(isSecure ? "None" : "Lax")
                 .path("/")
                 .maxAge(0)
                 .build();

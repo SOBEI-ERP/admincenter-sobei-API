@@ -21,16 +21,17 @@ import java.util.concurrent.TimeUnit;
  * Limita requisições para prevenir abuso e ataques de força bruta.
  * <p>
  * Limites:
- * - Rotas admin (/api/admin/**): 50 requisições por minuto por IP
- * - Rotas públicas (/api/public/**): 20 requisições por minuto por IP
+ * - Rotas admin (/api/admin/**): 5 requisições por janela de 10 segundos por IP
+ * - Rotas públicas (/api/public/**): 5 requisições por janela de 10 segundos por IP
  * - Swagger/docs: sem limite
  */
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int ADMIN_LIMIT = 50;
-    private static final int PUBLIC_LIMIT = 20;
-    private static final long WINDOW_MS = 60_000L; // 1 minuto
+    private static final int PUBLIC_REQUEST_LIMIT = 10;
+    private static final int ADMIN_REQUEST_LIMIT = 30;
+    private static final long WINDOW_MS = 10_000L; // 10 segundos
+    private static final int RETRY_AFTER_SECONDS = 10;
 
     private final Map<String, ConcurrentLinkedDeque<Long>> requestCounts = new ConcurrentHashMap<>();
 
@@ -47,6 +48,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        // Sem limite para HTTP OPTIONS (preflight CORS)
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
 
         // Sem limite para Swagger e docs
@@ -55,25 +62,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        int limit;
-        if (path.startsWith("/api/admin/")) {
-            limit = ADMIN_LIMIT;
-        } else if (path.startsWith("/api/public/")) {
-            limit = PUBLIC_LIMIT;
-        } else {
+        boolean isAdminRoute = path.startsWith("/api/admin/");
+        boolean isPublicRoute = path.startsWith("/api/public/");
+
+        if (!isAdminRoute && !isPublicRoute) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String clientIp = resolveClientIp(request);
-        String key = clientIp + ":" + (path.startsWith("/api/admin/") ? "admin" : "public");
+        String key = clientIp + ":" + (isAdminRoute ? "admin" : "public");
+        int limit = isAdminRoute ? ADMIN_REQUEST_LIMIT : PUBLIC_REQUEST_LIMIT;
 
         if (isRateLimited(key, limit)) {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setHeader("Retry-After", "60");
+            response.setHeader("Retry-After", String.valueOf(RETRY_AFTER_SECONDS));
             response.getWriter().write(
-                    "{\"status\":429,\"message\":\"Muitas requisições. Tente novamente em 1 minuto.\"}"
+                    "{\"status\":429,\"message\":\"Muitas requisições. Tente novamente em " + RETRY_AFTER_SECONDS + " segundos.\"}"
             );
             return;
         }

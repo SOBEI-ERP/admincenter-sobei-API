@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @Tag(name = "Estatísticas (Admin)", description = "Endpoints para os gráficos e painéis estatísticos do Dashboard.")
 @SecurityRequirement(name = "BearerAuth")
+@PreAuthorize("hasAnyRole('DP', 'SUPORTE')")
 public class EstatisticaController {
 
     private final EstatisticaService estatisticaService;
@@ -31,4 +33,12 @@ public class EstatisticaController {
     ) {
         return ResponseEntity.ok(estatisticaService.obterEstatisticas(tipo, unidade, dataInicio, dataFim));
     }
+
+    @Operation(summary = "Obter estatísticas consolidadas do Congresso SOBEI 2026", description = "Retorna métricas gerais de inscritos, lotação de oficinas, evolução temporal, unidades e comparativo SOBEI vs Outras OSCs. Exclusivo para perfil SUPORTE.")
+    @GetMapping("/congresso")
+    @PreAuthorize("hasRole('SUPORTE')")
+    public ResponseEntity<br.org.sobei.denuncias.dto.response.EstatisticaCongressoResponse> getEstatisticasCongresso() {
+        return ResponseEntity.ok(estatisticaService.obterEstatisticasCongresso());
+    }
 }
+
