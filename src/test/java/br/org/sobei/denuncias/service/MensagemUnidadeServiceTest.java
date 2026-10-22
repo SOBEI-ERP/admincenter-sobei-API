@@ -54,7 +54,7 @@ class MensagemUnidadeServiceTest {
                 .build();
 
         when(usuarioRepository.findByEmail("coord@sobei.org.br")).thenReturn(Optional.of(coord));
-        when(mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseOrderByDataEnvioDesc("CEI Amigo"))
+        when(mensagemUnidadeRepository.findByUnidadeIgnoreCaseOrderByDataEnvioDesc("CEI Amigo"))
                 .thenReturn(List.of(msg));
 
         List<MensagemUnidadeResponse> res = mensagemUnidadeService.listar("coord@sobei.org.br", null, false);
@@ -62,7 +62,23 @@ class MensagemUnidadeServiceTest {
         assertNotNull(res);
         assertEquals(1, res.size());
         assertEquals("João Silva", res.get(0).getNomeCompleto());
-        verify(mensagemUnidadeRepository).findByUnidadeContainingIgnoreCaseOrderByDataEnvioDesc("CEI Amigo");
+        verify(mensagemUnidadeRepository).findByUnidadeIgnoreCaseOrderByDataEnvioDesc("CEI Amigo");
+    }
+
+    @Test
+    @DisplayName("Coordenadora ou Diretora não podem excluir mensagens da unidade (apenas Suporte)")
+    void testCoordenadoraNaoPodeDeletarMensagem() {
+        Usuario coord = Usuario.builder()
+                .email("coord@sobei.org.br")
+                .nivel(NivelAdmin.coordenadora)
+                .unidade("CEI Amigo")
+                .build();
+
+        when(usuarioRepository.findByEmail("coord@sobei.org.br")).thenReturn(Optional.of(coord));
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
+            mensagemUnidadeService.deletar(1, "coord@sobei.org.br");
+        });
     }
 
     @Test

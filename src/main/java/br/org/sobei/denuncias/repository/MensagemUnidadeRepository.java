@@ -11,9 +11,13 @@ public interface MensagemUnidadeRepository extends JpaRepository<MensagemUnidade
 
     List<MensagemUnidade> findByUnidadeOrderByDataEnvioDesc(String unidade);
 
+    List<MensagemUnidade> findByUnidadeIgnoreCaseOrderByDataEnvioDesc(String unidade);
+
     List<MensagemUnidade> findByUnidadeContainingIgnoreCaseOrderByDataEnvioDesc(String unidade);
 
     List<MensagemUnidade> findByUnidadeAndLidaOrderByDataEnvioDesc(String unidade, Boolean lida);
+
+    List<MensagemUnidade> findByUnidadeIgnoreCaseAndLidaOrderByDataEnvioDesc(String unidade, Boolean lida);
 
     List<MensagemUnidade> findByUnidadeContainingIgnoreCaseAndLidaOrderByDataEnvioDesc(String unidade, Boolean lida);
 

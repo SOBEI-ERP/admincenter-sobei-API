@@ -168,15 +168,12 @@ public class VagaService {
     public void deletar(Integer id, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
 
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.dp) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas usuários de Suporte ou DP podem excluir vagas permanentemente.");
+        }
+
         Vaga vaga = vagaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vaga não encontrada."));
-
-        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.dp) {
-            validarDiretora(admin);
-            if (!vaga.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
-                throw new IllegalArgumentException("Você não tem permissão para excluir vagas desta unidade.");
-            }
-        }
 
         // Deletar os currículos de candidaturas ativas no Cloudflare R2
         List<Candidatura> candidaturas = candidaturaRepository.findByVagaIdOrderByDataEnvioDesc(id);

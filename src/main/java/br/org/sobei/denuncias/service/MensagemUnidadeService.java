@@ -48,10 +48,11 @@ public class MensagemUnidadeService {
         if (admin.getNivel() == NivelAdmin.suporte ||
             (admin.getNivel() == NivelAdmin.coordenadora_evento && (admin.getUnidade() == null || admin.getUnidade().isBlank()))) {
             if (unidadeFiltro != null && !unidadeFiltro.isBlank()) {
+                String filtroLimpo = unidadeFiltro.trim();
                 if (Boolean.TRUE.equals(apenasNaoLidas)) {
-                    mensagens = mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseAndLidaOrderByDataEnvioDesc(unidadeFiltro, false);
+                    mensagens = mensagemUnidadeRepository.findByUnidadeIgnoreCaseAndLidaOrderByDataEnvioDesc(filtroLimpo, false);
                 } else {
-                    mensagens = mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseOrderByDataEnvioDesc(unidadeFiltro);
+                    mensagens = mensagemUnidadeRepository.findByUnidadeIgnoreCaseOrderByDataEnvioDesc(filtroLimpo);
                 }
             } else {
                 if (Boolean.TRUE.equals(apenasNaoLidas)) {
@@ -64,10 +65,13 @@ public class MensagemUnidadeService {
             validarDiretoraOuCoordenadora(admin);
             if (admin.getUnidade() == null || admin.getUnidade().isBlank()) {
                 mensagens = List.of();
-            } else if (Boolean.TRUE.equals(apenasNaoLidas)) {
-                mensagens = mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseAndLidaOrderByDataEnvioDesc(admin.getUnidade(), false);
             } else {
-                mensagens = mensagemUnidadeRepository.findByUnidadeContainingIgnoreCaseOrderByDataEnvioDesc(admin.getUnidade());
+                String unidadeAdmin = admin.getUnidade().trim();
+                if (Boolean.TRUE.equals(apenasNaoLidas)) {
+                    mensagens = mensagemUnidadeRepository.findByUnidadeIgnoreCaseAndLidaOrderByDataEnvioDesc(unidadeAdmin, false);
+                } else {
+                    mensagens = mensagemUnidadeRepository.findByUnidadeIgnoreCaseOrderByDataEnvioDesc(unidadeAdmin);
+                }
             }
         }
 
@@ -97,24 +101,19 @@ public class MensagemUnidadeService {
     public void deletar(Integer id, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
 
+        if (admin.getNivel() != NivelAdmin.suporte) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas administradores com nível Suporte podem excluir mensagens da unidade.");
+        }
+
         MensagemUnidade mensagem = mensagemUnidadeRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Mensagem não encontrada."));
-
-        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.coordenadora_evento) {
-            validarDiretoraOuCoordenadora(admin);
-            if (admin.getUnidade() != null && !admin.getUnidade().isBlank() && !unidadeCombina(mensagem.getUnidade(), admin.getUnidade())) {
-                throw new IllegalArgumentException("Você não tem permissão para excluir mensagens desta unidade.");
-            }
-        }
 
         mensagemUnidadeRepository.delete(mensagem);
     }
 
     private boolean unidadeCombina(String unidade1, String unidade2) {
         if (unidade1 == null || unidade2 == null) return false;
-        String u1 = unidade1.toLowerCase();
-        String u2 = unidade2.toLowerCase();
-        return u1.contains(u2) || u2.contains(u1);
+        return unidade1.trim().equalsIgnoreCase(unidade2.trim());
     }
 
     // ---- Helpers ----

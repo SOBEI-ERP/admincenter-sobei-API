@@ -38,7 +38,7 @@ public class InscricaoCongressoAdminController {
 
     @Operation(summary = "Confirmar ou alternar presença de inscrito", description = "Atualiza o status de presença de um inscrito no evento para o dia 11, dia 12 ou geral.")
     @PatchMapping("/{id}/presenca")
-    @PreAuthorize("hasAnyRole('SUPORTE', 'DIRETORA', 'CREDENCIADOR', 'COORDENADORA_EVENTO')")
+    @PreAuthorize("hasAnyRole('SUPORTE', 'CREDENCIADOR', 'COORDENADORA_EVENTO')")
     public ResponseEntity<InscricaoCongressoResponse> alterarPresenca(
             @PathVariable Integer id,
             @Parameter(description = "Dia do evento (11 ou 12)") @RequestParam(required = false) Integer dia,
@@ -62,8 +62,9 @@ public class InscricaoCongressoAdminController {
         ));
     }
 
-    @Operation(summary = "Enviar certificados em lote para participantes com check-in em ambos os dias", description = "Dispara os certificados por e-mail para todos os inscritos que compareceram aos dois dias (11 e 12 de setembro).")
+    @Operation(summary = "Enviar certificados em lote para participantes com check-in em ambos os dias", description = "Dispara os certificados por e-mail para todos os inscritos que compareceram aos dois dias (11 e 12 de setembro). Restrito a suporte ou coordenação do evento.")
     @PostMapping("/enviar-certificados-ambos-dias")
+    @PreAuthorize("hasAnyRole('SUPORTE', 'COORDENADORA_EVENTO')")
     public ResponseEntity<java.util.Map<String, Object>> enviarCertificadosAmbosDias(
             Principal principal
     ) {

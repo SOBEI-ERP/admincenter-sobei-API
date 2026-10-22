@@ -8,11 +8,11 @@
 		<version>4.0.6</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>br.org.sobeidenuncia</groupId>
-	<artifactId>sobeidenuncia-api</artifactId>
+	<groupId>br.org.sobei</groupId>
+	<artifactId>api.sobei.org.br</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>sobeidenuncia-api</name>
-	<description>API de denúncias SOBEI</description>
+	<name>api.sobei.org.br</name>
+	<description>API Central de Servicos Administrativos e Portais da SOBEI</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -27,7 +27,7 @@
 		<url/>
 	</scm>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>25</java.version>
 		<lombok.version>1.18.46</lombok.version>
 	</properties>
 	<dependencies>
