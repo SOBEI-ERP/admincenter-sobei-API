@@ -234,9 +234,9 @@ class InscricaoCongressoServiceTest {
     void deveRejeitarAtualizacaoQuandoCotaOutrasOscAtingida() {
         Usuario admin = Usuario.builder()
                 .id(3)
-                .usuario("diretora")
-                .email("diretora@sobei.org.br")
-                .nivel(NivelAdmin.diretora)
+                .usuario("coord_evento")
+                .email("coordenacao.evento@sobei.org.br")
+                .nivel(NivelAdmin.coordenadora_evento)
                 .build();
 
         InscricaoCongresso inscricaoAlvo = InscricaoCongresso.builder()
@@ -259,7 +259,7 @@ class InscricaoCongressoServiceTest {
         }
         existentes.add(inscricaoAlvo);
 
-        when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
+        when(usuarioRepository.findByEmail("coordenacao.evento@sobei.org.br")).thenReturn(Optional.of(admin));
         when(inscricaoRepository.findById(99)).thenReturn(Optional.of(inscricaoAlvo));
         when(inscricaoRepository.findAll()).thenReturn(existentes);
 
@@ -268,7 +268,7 @@ class InscricaoCongressoServiceTest {
                 .build();
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                inscricaoService.atualizarOficinas(99, req, "diretora@sobei.org.br")
+                inscricaoService.atualizarOficinas(99, req, "coordenacao.evento@sobei.org.br")
         );
 
         assertTrue(ex.getMessage().contains("outras OSCs"));
@@ -508,6 +508,46 @@ class InscricaoCongressoServiceTest {
 
         assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
             inscricaoService.alterarPresenca(1, 11, true, "dp@sobei.org.br");
+        });
+    }
+
+    @Test
+    @DisplayName("Deve restringir diretora à sua própria unidade e negar presença ou outras unidades")
+    void deveRestringirDiretoraASuaPropriaUnidade() {
+        Usuario diretoraLeblon = Usuario.builder()
+                .id(20)
+                .email("diretora.leblon@sobei.org.br")
+                .nivel(NivelAdmin.diretora)
+                .unidade("CEI Leblon")
+                .build();
+
+        InscricaoCongresso inscricaoOutraUnidade = InscricaoCongresso.builder()
+                .id(101)
+                .nomeCompleto("Professor Outro")
+                .tipoOsc("SOBEI")
+                .unidade("CEI Vila Remo")
+                .build();
+
+        when(usuarioRepository.findByEmail("diretora.leblon@sobei.org.br")).thenReturn(Optional.of(diretoraLeblon));
+        when(inscricaoRepository.findById(101)).thenReturn(Optional.of(inscricaoOutraUnidade));
+
+        // 1. Diretora não pode alterar presença
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
+            inscricaoService.alterarPresenca(101, 11, true, "diretora.leblon@sobei.org.br");
+        });
+
+        // 2. Diretora não pode disparar certificados em lote
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
+            inscricaoService.enviarCertificadosLoteAmbosDias("diretora.leblon@sobei.org.br");
+        });
+
+        // 3. Diretora não pode alterar oficina de participante de outra unidade
+        br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
+                .oficina("Cleide Derenzi Valadas")
+                .build();
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
+            inscricaoService.atualizarOficinas(101, req, "diretora.leblon@sobei.org.br");
         });
     }
 }

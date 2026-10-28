@@ -147,8 +147,8 @@ public class InscricaoCongressoService {
 
         List<InscricaoCongresso> todas = inscricaoRepository.findAllByOrderByNomeCompletoAsc();
 
-        // Se for COORDENADORA de CEI específica (e não suporte/diretoria/credenciamento)
-        if (admin.getNivel() == NivelAdmin.coordenadora) {
+        // Se for COORDENADORA ou DIRETORA de CEI específica (gestoras de unidade local)
+        if (admin.getNivel() == NivelAdmin.coordenadora || admin.getNivel() == NivelAdmin.diretora) {
             final String fUnidadeAdmin = admin.getUnidade() != null ? admin.getUnidade().trim().toLowerCase() : "";
             return todas.stream()
                     .filter(i -> "sobei".equalsIgnoreCase(i.getTipoOsc()))
@@ -158,7 +158,7 @@ public class InscricaoCongressoService {
                     .collect(Collectors.toList());
         }
 
-        // SUPORTE, DIRETORA, CREDENCIADOR, COORDENADORA_EVENTO -> ACESSO GERAL IRRESTRITO A TUDO
+        // SUPORTE, CREDENCIADOR, COORDENADORA_EVENTO -> ACESSO GERAL AO EVENTO
         return todas.stream()
                 .filter(i -> filtrarInscricao(i, fTermo, fTermoCpf, fUnidade, fTipoOsc, fPresente))
                 .map(this::toResponse)
@@ -205,8 +205,10 @@ public class InscricaoCongressoService {
     @Transactional
     public InscricaoCongressoResponse alterarPresenca(Integer id, Integer dia, Boolean presente, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
-        if (admin.getNivel() == NivelAdmin.dp) {
-            throw new AccessDeniedException("Acesso restrito: departamento pessoal não tem acesso ao gerenciamento de presença do congresso.");
+        if (admin.getNivel() != NivelAdmin.suporte &&
+            admin.getNivel() != NivelAdmin.credenciador &&
+            admin.getNivel() != NivelAdmin.coordenadora_evento) {
+            throw new AccessDeniedException("Acesso restrito: apenas credenciadores, coordenação do evento ou suporte podem confirmar presença no congresso.");
         }
 
         InscricaoCongresso inscricao = inscricaoRepository.findById(id)
@@ -388,14 +390,11 @@ public class InscricaoCongressoService {
     @Transactional(readOnly = true)
     public java.util.Map<String, Object> enviarCertificadosLoteAmbosDias(String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
-        List<InscricaoCongresso> inscritos;
-
-        if (admin.getNivel() == NivelAdmin.coordenadora) {
-            String unidade = admin.getUnidade() != null ? admin.getUnidade().trim() : "";
-            inscritos = inscricaoRepository.findAllComCheckinAmbosDiasPorUnidade(unidade);
-        } else {
-            inscritos = inscricaoRepository.findAllComCheckinAmbosDias();
+        if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.coordenadora_evento) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas Suporte ou Coordenação Geral do Evento podem disparar certificados em lote.");
         }
+
+        List<InscricaoCongresso> inscritos = inscricaoRepository.findAllComCheckinAmbosDias();
 
         if (inscritos.isEmpty()) {
             return java.util.Map.of(
@@ -458,10 +457,11 @@ public class InscricaoCongressoService {
         InscricaoCongresso inscricao = inscricaoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Inscrição não encontrada."));
 
-        if (admin.getNivel() == NivelAdmin.coordenadora) {
+        if (admin.getNivel() == NivelAdmin.coordenadora || admin.getNivel() == NivelAdmin.diretora) {
             if (!"SOBEI".equalsIgnoreCase(inscricao.getTipoOsc()) ||
                     inscricao.getUnidade() == null ||
-                    !inscricao.getUnidade().equalsIgnoreCase(admin.getUnidade())) {
+                    admin.getUnidade() == null ||
+                    !inscricao.getUnidade().trim().equalsIgnoreCase(admin.getUnidade().trim())) {
                 throw new org.springframework.security.access.AccessDeniedException("Acesso restrito à sua própria unidade.");
             }
         }

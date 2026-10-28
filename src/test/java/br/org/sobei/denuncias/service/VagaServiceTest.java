@@ -337,7 +337,7 @@ class VagaServiceTest {
 
         when(usuarioRepository.findByEmail("diretora@sobei.org.br")).thenReturn(Optional.of(admin));
 
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
             vagaService.deletar(10, "diretora@sobei.org.br");
         });
 

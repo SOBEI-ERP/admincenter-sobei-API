@@ -42,8 +42,9 @@ public class MensagemUnidadeAdminController {
         return ResponseEntity.ok(mensagemUnidadeService.marcarComoLida(id, principal.getName()));
     }
 
-    @Operation(summary = "Excluir mensagem", description = "Exclui permanentemente uma mensagem da unidade.")
+    @Operation(summary = "Excluir mensagem", description = "Exclui permanentemente uma mensagem da unidade. Restrito ao suporte.")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPORTE')")
     public ResponseEntity<Void> deletar(
             @PathVariable Integer id,
             Principal principal) {

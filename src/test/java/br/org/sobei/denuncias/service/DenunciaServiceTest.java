@@ -5,11 +5,9 @@ import br.org.sobei.denuncias.dto.response.ConsultaProtocoloResponse;
 import br.org.sobei.denuncias.dto.response.CriarDenunciaResponse;
 import br.org.sobei.denuncias.model.entity.ConclusaoDenuncia;
 import br.org.sobei.denuncias.model.entity.Denuncia;
-import br.org.sobei.denuncias.model.entity.MedidaAdotada;
 import br.org.sobei.denuncias.model.enums.StatusDenuncia;
 import br.org.sobei.denuncias.model.enums.TipoConclusao;
 import br.org.sobei.denuncias.model.enums.TipoDenuncia;
-import br.org.sobei.denuncias.model.enums.Unidade;
 import br.org.sobei.denuncias.repository.ConclusaoDenunciaRepository;
 import br.org.sobei.denuncias.repository.DenunciaRepository;
 import br.org.sobei.denuncias.repository.MedidaAdotadaRepository;
@@ -20,12 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
