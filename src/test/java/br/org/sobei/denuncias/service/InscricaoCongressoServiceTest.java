@@ -110,7 +110,7 @@ class InscricaoCongressoServiceTest {
                 .id(1)
                 .usuario("suporte")
                 .email("suporte@sobei.org.br")
-                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.suporte)
+                .nivel(NivelAdmin.suporte)
                 .build();
 
         InscricaoCongresso inscricao = InscricaoCongresso.builder()
@@ -145,7 +145,7 @@ class InscricaoCongressoServiceTest {
                 .id(2)
                 .usuario("coordenadora")
                 .email("coordenadora@sobei.org.br")
-                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.coordenadora)
+                .nivel(NivelAdmin.coordenadora)
                 .unidade("CEI Leblon")
                 .build();
 
@@ -170,7 +170,7 @@ class InscricaoCongressoServiceTest {
 
         when(usuarioRepository.findByEmail("coordenadora@sobei.org.br")).thenReturn(Optional.of(admin));
         when(inscricaoRepository.findById(10)).thenReturn(Optional.of(inscricaoAlvo));
-        when(inscricaoRepository.findAll()).thenReturn(List.of(inscricaoJaAlocada, inscricaoAlvo));
+        when(inscricaoRepository.findSobeiComOficinaExcludingId(10)).thenReturn(List.of(inscricaoJaAlocada));
 
         br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
                 .oficina("Cleide Derenzi Valadas")
@@ -192,7 +192,7 @@ class InscricaoCongressoServiceTest {
                 .id(1)
                 .usuario("suporte")
                 .email("suporte@sobei.org.br")
-                .nivel(br.org.sobei.denuncias.model.enums.NivelAdmin.suporte)
+                .nivel(NivelAdmin.suporte)
                 .build();
 
         InscricaoCongresso inscricaoAlvo = InscricaoCongresso.builder()
@@ -202,16 +202,6 @@ class InscricaoCongressoServiceTest {
                 .email("prof2@sobei.org.br")
                 .tipoOsc("SOBEI")
                 .unidade("CEI Leblon")
-                .build();
-
-        InscricaoCongresso inscricaoJaAlocada = InscricaoCongresso.builder()
-                .id(9)
-                .nomeCompleto("Professora 1")
-                .cpf("111.111.111-11")
-                .email("prof1@sobei.org.br")
-                .tipoOsc("SOBEI")
-                .unidade("CEI Leblon")
-                .oficina("Cleide Derenzi Valadas")
                 .build();
 
         when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(admin));
@@ -257,11 +247,10 @@ class InscricaoCongressoServiceTest {
                     .oficina("Quem dança seus males espanta!")
                     .build());
         }
-        existentes.add(inscricaoAlvo);
 
         when(usuarioRepository.findByEmail("coordenacao.evento@sobei.org.br")).thenReturn(Optional.of(admin));
         when(inscricaoRepository.findById(99)).thenReturn(Optional.of(inscricaoAlvo));
-        when(inscricaoRepository.findAll()).thenReturn(existentes);
+        when(inscricaoRepository.findOutrasOscComOficinaExcludingId(99)).thenReturn(existentes);
 
         br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest req = br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest.builder()
                 .oficina("Quem dança seus males espanta!")
@@ -293,18 +282,6 @@ class InscricaoCongressoServiceTest {
                 .tipoOsc("OUTRA")
                 .outraOsc("Instituto Cidadão")
                 .build();
-
-        java.util.List<InscricaoCongresso> existentes = new java.util.ArrayList<>();
-        for (int i = 1; i <= 10; i++) {
-            existentes.add(InscricaoCongresso.builder()
-                    .id(i)
-                    .nomeCompleto("Participante " + i)
-                    .tipoOsc("OUTRA")
-                    .outraOsc("OSC " + i)
-                    .oficina("Quem dança seus males espanta!")
-                    .build());
-        }
-        existentes.add(inscricaoAlvo);
 
         when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(suporte));
         when(inscricaoRepository.findById(99)).thenReturn(Optional.of(inscricaoAlvo));
@@ -549,5 +526,52 @@ class InscricaoCongressoServiceTest {
         assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> {
             inscricaoService.atualizarOficinas(101, req, "diretora.leblon@sobei.org.br");
         });
+    }
+
+    @Test
+    @DisplayName("Deve delegar filtros ao banco via buscarComFiltros para suporte e buscarPorUnidadeCoordenadora para coordenadora")
+    void deveDelegarFiltrosAoBancoCorretamente() {
+        Usuario suporte = Usuario.builder()
+                .id(1)
+                .email("suporte@sobei.org.br")
+                .nivel(NivelAdmin.suporte)
+                .build();
+
+        Usuario coordenadora = Usuario.builder()
+                .id(2)
+                .email("coord.leblon@sobei.org.br")
+                .nivel(NivelAdmin.coordenadora)
+                .unidade("Leblon")
+                .build();
+
+        InscricaoCongresso inscrito = InscricaoCongresso.builder()
+                .id(10)
+                .nomeCompleto("Maria Leblon")
+                .cpf("123.456.789-00")
+                .email("maria@sobei.org.br")
+                .tipoOsc("SOBEI")
+                .unidade("Leblon")
+                .presente(true)
+                .build();
+
+        when(usuarioRepository.findByEmail("suporte@sobei.org.br")).thenReturn(Optional.of(suporte));
+        when(usuarioRepository.findByEmail("coord.leblon@sobei.org.br")).thenReturn(Optional.of(coordenadora));
+        when(inscricaoRepository.buscarComFiltros("123.456", "123456", "Leblon", "SOBEI", true))
+                .thenReturn(List.of(inscrito));
+        when(inscricaoRepository.buscarPorUnidadeCoordenadora("Leblon", "maria", null, null))
+                .thenReturn(List.of(inscrito));
+
+        List<InscricaoCongressoResponse> resSuporte = inscricaoService.listar(
+                "suporte@sobei.org.br", "123.456", "Leblon", "SOBEI", true
+        );
+        assertEquals(1, resSuporte.size());
+        verify(inscricaoRepository, times(1)).buscarComFiltros("123.456", "123456", "Leblon", "SOBEI", true);
+        verify(inscricaoRepository, never()).findAllByOrderByNomeCompletoAsc();
+
+        List<InscricaoCongressoResponse> resCoord = inscricaoService.listar(
+                "coord.leblon@sobei.org.br", "Maria", null, null, null
+        );
+        assertEquals(1, resCoord.size());
+        verify(inscricaoRepository, times(1)).buscarPorUnidadeCoordenadora("Leblon", "maria", null, null);
     }
 }

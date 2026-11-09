@@ -1,5 +1,6 @@
 package br.org.sobei.denuncias.service;
 
+import br.org.sobei.denuncias.config.OficinaCotasConfig;
 import br.org.sobei.denuncias.dto.request.AtualizarOficinasRequest;
 import br.org.sobei.denuncias.dto.request.CriarInscricaoCongressoRequest;
 import br.org.sobei.denuncias.dto.response.InscricaoCongressoResponse;
@@ -15,12 +16,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class InscricaoCongressoService {
+
+    private static final Pattern PATTERN_NAO_DIGITOS = Pattern.compile("\\D+");
 
     private final InscricaoCongressoRepository inscricaoRepository;
     private final UsuarioRepository usuarioRepository;
@@ -34,12 +39,12 @@ public class InscricaoCongressoService {
     // ---- PÚBLICO ----
 
     @Transactional(readOnly = true)
-    public java.util.Map<String, Object> obterStatusVagas() {
+    public Map<String, Object> obterStatusVagas() {
         long total = inscricaoRepository.count();
         boolean abertas = total < LIMITE_GERAL_INSCRICOES;
         long restantes = Math.max(0, LIMITE_GERAL_INSCRICOES - total);
 
-        return java.util.Map.of(
+        return Map.of(
                 "totalInscritos", total,
                 "limiteMaximo", LIMITE_GERAL_INSCRICOES,
                 "vagasRestantes", restantes,
@@ -82,7 +87,9 @@ public class InscricaoCongressoService {
         String cpfLimpo = CpfValidator.desformatar(request.getCpf());
         String cpfFormatado = CpfValidator.formatar(request.getCpf());
 
-        if (inscricaoRepository.findByCpf(cpfFormatado).isPresent() || inscricaoRepository.findByCpf(cpfLimpo).isPresent()) {
+        if (inscricaoRepository.existsByCpfOrCpfSemMascara(cpfFormatado, cpfLimpo)
+                || inscricaoRepository.findByCpf(cpfFormatado).isPresent()
+                || inscricaoRepository.findByCpf(cpfLimpo).isPresent()) {
             throw new IllegalArgumentException("Este CPF já está inscrito no Congresso.");
         }
 
@@ -132,74 +139,41 @@ public class InscricaoCongressoService {
 
     @Transactional(readOnly = true)
     public List<InscricaoCongressoResponse> listar(String adminEmail, String termo, String unidade, String tipoOsc, Boolean presente) {
+        return listarEntidades(adminEmail, termo, unidade, tipoOsc, presente)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private List<InscricaoCongresso> listarEntidades(String adminEmail, String termo, String unidade, String tipoOsc, Boolean presente) {
         Usuario admin = getAdmin(adminEmail);
         if (admin.getNivel() == NivelAdmin.dp) {
             throw new AccessDeniedException("Acesso restrito: departamento pessoal não tem acesso às inscrições do congresso.");
         }
 
         final String fTermo = (termo != null && !termo.trim().isBlank()) ? termo.trim().toLowerCase() : null;
-        String rawCpf = (termo != null) ? termo.replaceAll("\\D", "") : null;
+        final String rawCpf = (fTermo != null) ? PATTERN_NAO_DIGITOS.matcher(fTermo).replaceAll("") : null;
         final String fTermoCpf = (rawCpf != null && !rawCpf.isBlank()) ? rawCpf : null;
 
-        final String fUnidade = (unidade != null && !unidade.trim().isBlank()) ? unidade.trim().toLowerCase() : null;
-        final String fTipoOsc = (tipoOsc != null && !tipoOsc.trim().isBlank()) ? tipoOsc.trim().toLowerCase() : null;
+        final String fUnidade = (unidade != null && !unidade.trim().isBlank()) ? unidade.trim() : null;
+        final String fTipoOsc = (tipoOsc != null && !tipoOsc.trim().isBlank()) ? tipoOsc.trim() : null;
         final Boolean fPresente = presente;
-
-        List<InscricaoCongresso> todas = inscricaoRepository.findAllByOrderByNomeCompletoAsc();
 
         // Se for COORDENADORA ou DIRETORA de CEI específica (gestoras de unidade local)
         if (admin.getNivel() == NivelAdmin.coordenadora || admin.getNivel() == NivelAdmin.diretora) {
-            final String fUnidadeAdmin = admin.getUnidade() != null ? admin.getUnidade().trim().toLowerCase() : "";
-            return todas.stream()
-                    .filter(i -> "sobei".equalsIgnoreCase(i.getTipoOsc()))
-                    .filter(i -> i.getUnidade() != null && i.getUnidade().trim().equalsIgnoreCase(fUnidadeAdmin))
-                    .filter(i -> filtrarInscricao(i, fTermo, fTermoCpf, fUnidade, fTipoOsc, fPresente))
-                    .map(this::toResponse)
-                    .collect(Collectors.toList());
+            final String fUnidadeAdmin = admin.getUnidade() != null ? admin.getUnidade().trim() : "";
+            if (fUnidadeAdmin.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return inscricaoRepository.buscarPorUnidadeCoordenadora(fUnidadeAdmin, fTermo, fTermoCpf, fPresente);
         }
 
         // SUPORTE, CREDENCIADOR, COORDENADORA_EVENTO -> ACESSO GERAL AO EVENTO
-        return todas.stream()
-                .filter(i -> filtrarInscricao(i, fTermo, fTermoCpf, fUnidade, fTipoOsc, fPresente))
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-    }
-
-    private boolean filtrarInscricao(InscricaoCongresso i, String termo, String termoCpf, String unidade, String tipoOsc, Boolean presente) {
-        if (termo != null) {
-            boolean matchNome = i.getNomeCompleto() != null && i.getNomeCompleto().toLowerCase().contains(termo);
-            boolean matchEmail = i.getEmail() != null && i.getEmail().toLowerCase().contains(termo);
-            boolean matchCpf = i.getCpf() != null && i.getCpf().contains(termo);
-            boolean matchCpfLimpo = false;
-            if (termoCpf != null && i.getCpf() != null) {
-                String cpfLimpo = i.getCpf().replaceAll("\\D", "");
-                matchCpfLimpo = cpfLimpo.contains(termoCpf);
-            }
-            if (!matchNome && !matchEmail && !matchCpf && !matchCpfLimpo) {
-                return false;
-            }
+        if (fTermo == null && fUnidade == null && fTipoOsc == null && fPresente == null) {
+            return inscricaoRepository.findAllByOrderByNomeCompletoAsc();
         }
 
-        if (unidade != null) {
-            if (i.getUnidade() == null || !i.getUnidade().trim().equalsIgnoreCase(unidade)) {
-                return false;
-            }
-        }
-
-        if (tipoOsc != null) {
-            if (i.getTipoOsc() == null || !i.getTipoOsc().trim().equalsIgnoreCase(tipoOsc)) {
-                return false;
-            }
-        }
-
-        if (presente != null) {
-            boolean isInscritoPresente = Boolean.TRUE.equals(i.getPresente());
-            if (isInscritoPresente != presente) {
-                return false;
-            }
-        }
-
-        return true;
+        return inscricaoRepository.buscarComFiltros(fTermo, fTermoCpf, fUnidade, fTipoOsc, fPresente);
     }
 
     @Transactional
@@ -235,7 +209,9 @@ public class InscricaoCongressoService {
         }
 
         // Mantém presente = true se compareceu em pelo menos um dia
-        boolean compareceuPeloMenosUm = Boolean.TRUE.equals(inscricao.getPresenteDia11()) || Boolean.TRUE.equals(inscricao.getPresenteDia12()) || Boolean.TRUE.equals(inscricao.getPresente());
+        boolean compareceuPeloMenosUm = Boolean.TRUE.equals(inscricao.getPresenteDia11())
+                || Boolean.TRUE.equals(inscricao.getPresenteDia12())
+                || Boolean.TRUE.equals(inscricao.getPresente());
         inscricao.setPresente(compareceuPeloMenosUm);
         if (compareceuPeloMenosUm && inscricao.getDataPresenca() == null) {
             inscricao.setDataPresenca(agora);
@@ -264,21 +240,16 @@ public class InscricaoCongressoService {
         // Validação de cota máxima da unidade para participantes SOBEI
         // Usuários com nível SUPORTE possuem liberação irrestrita (sem limite de inscrição em nenhuma oficina)
         if (admin.getNivel() != NivelAdmin.suporte && novaOficina != null && "SOBEI".equalsIgnoreCase(inscricao.getTipoOsc())) {
-            int cota = br.org.sobei.denuncias.config.OficinaCotasConfig.obterCotaUnidade(novaOficina, inscricao.getUnidade());
+            int cota = OficinaCotasConfig.obterCotaUnidade(novaOficina, inscricao.getUnidade());
             if (cota < 999) {
-                String chaveOficinaNova = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(novaOficina);
-                String chaveUnidade = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarUnidade(inscricao.getUnidade());
+                String chaveOficinaNova = OficinaCotasConfig.normalizarTexto(novaOficina);
+                String chaveUnidade = OficinaCotasConfig.normalizarUnidade(inscricao.getUnidade());
 
-                long ocupadas = inscricaoRepository.findAll().stream()
-                        .filter(i -> !i.getId().equals(id))
-                        .filter(i -> "SOBEI".equalsIgnoreCase(i.getTipoOsc()))
-                        .filter(i -> br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarUnidade(i.getUnidade()).equals(chaveUnidade))
-                        .filter(i -> {
-                            String of = i.getOficina() != null ? i.getOficina() : (i.getOficinaManha() != null ? i.getOficinaManha() : i.getOficinaTarde());
-                            if (of == null) return false;
-                            String chaveOf = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(of);
-                            return chaveOf.equals(chaveOficinaNova) || chaveOf.contains(chaveOficinaNova) || chaveOficinaNova.contains(chaveOf);
-                        })
+                List<InscricaoCongresso> candidatosSobei = inscricaoRepository.findSobeiComOficinaExcludingId(id);
+
+                long ocupadas = candidatosSobei.stream()
+                        .filter(i -> OficinaCotasConfig.normalizarUnidade(i.getUnidade()).equals(chaveUnidade))
+                        .filter(i -> correspondeOficina(i, chaveOficinaNova))
                         .count();
 
                 if (ocupadas >= cota) {
@@ -293,17 +264,12 @@ public class InscricaoCongressoService {
         // Validação de cota de 10 vagas reservadas para participantes de OUTRAS OSCs (fora SOBEI)
         // Usuários com nível SUPORTE possuem liberação irrestrita
         if (admin.getNivel() != NivelAdmin.suporte && novaOficina != null && !"SOBEI".equalsIgnoreCase(inscricao.getTipoOsc())) {
-            String chaveOficinaNova = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(novaOficina);
+            String chaveOficinaNova = OficinaCotasConfig.normalizarTexto(novaOficina);
 
-            long ocupadasOutrasOsc = inscricaoRepository.findAll().stream()
-                    .filter(i -> !i.getId().equals(id))
-                    .filter(i -> !"SOBEI".equalsIgnoreCase(i.getTipoOsc()))
-                    .filter(i -> {
-                        String of = i.getOficina() != null ? i.getOficina() : (i.getOficinaManha() != null ? i.getOficinaManha() : i.getOficinaTarde());
-                        if (of == null) return false;
-                        String chaveOf = br.org.sobei.denuncias.config.OficinaCotasConfig.normalizarTexto(of);
-                        return chaveOf.equals(chaveOficinaNova) || chaveOf.contains(chaveOficinaNova) || chaveOficinaNova.contains(chaveOf);
-                    })
+            List<InscricaoCongresso> candidatosOutrasOsc = inscricaoRepository.findOutrasOscComOficinaExcludingId(id);
+
+            long ocupadasOutrasOsc = candidatosOutrasOsc.stream()
+                    .filter(i -> correspondeOficina(i, chaveOficinaNova))
                     .count();
 
             if (ocupadasOutrasOsc >= COTA_OUTRAS_OSC_POR_OFICINA) {
@@ -334,6 +300,13 @@ public class InscricaoCongressoService {
         return toResponse(salva);
     }
 
+    private boolean correspondeOficina(InscricaoCongresso i, String chaveOficinaNova) {
+        String of = i.getOficina() != null ? i.getOficina() : (i.getOficinaManha() != null ? i.getOficinaManha() : i.getOficinaTarde());
+        if (of == null || of.isBlank()) return false;
+        String chaveOf = OficinaCotasConfig.normalizarTexto(of);
+        return !chaveOf.isEmpty() && (chaveOf.equals(chaveOficinaNova) || chaveOf.contains(chaveOficinaNova) || chaveOficinaNova.contains(chaveOf));
+    }
+
     @Transactional(readOnly = true)
     public byte[] gerarCrachaPdf(Integer id, String adminEmail) {
         InscricaoCongresso inscricao = buscarInscricaoAutorizada(id, adminEmail);
@@ -342,16 +315,10 @@ public class InscricaoCongressoService {
 
     @Transactional(readOnly = true)
     public byte[] gerarCrachasLotePdf(String adminEmail, String termo, String unidade, String tipoOsc, Boolean presente) {
-        List<InscricaoCongressoResponse> listaFiltrada = listar(adminEmail, termo, unidade, tipoOsc, presente);
-        if (listaFiltrada.isEmpty()) {
+        List<InscricaoCongresso> inscricoes = listarEntidades(adminEmail, termo, unidade, tipoOsc, presente);
+        if (inscricoes.isEmpty()) {
             throw new IllegalArgumentException("Nenhum inscrito encontrado com os filtros selecionados.");
         }
-
-        List<Integer> ids = listaFiltrada.stream().map(InscricaoCongressoResponse::getId).collect(Collectors.toList());
-        List<InscricaoCongresso> inscricoes = inscricaoRepository.findAllById(ids);
-
-        // Manter a ordenação alfabética
-        inscricoes.sort((a, b) -> a.getNomeCompleto().compareToIgnoreCase(b.getNomeCompleto()));
 
         return crachaService.gerarGradeCrachas(inscricoes);
     }
@@ -388,16 +355,16 @@ public class InscricaoCongressoService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.Map<String, Object> enviarCertificadosLoteAmbosDias(String adminEmail) {
+    public Map<String, Object> enviarCertificadosLoteAmbosDias(String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
         if (admin.getNivel() != NivelAdmin.suporte && admin.getNivel() != NivelAdmin.coordenadora_evento) {
-            throw new org.springframework.security.access.AccessDeniedException("Apenas Suporte ou Coordenação Geral do Evento podem disparar certificados em lote.");
+            throw new AccessDeniedException("Apenas Suporte ou Coordenação Geral do Evento podem disparar certificados em lote.");
         }
 
         List<InscricaoCongresso> inscritos = inscricaoRepository.findAllComCheckinAmbosDias();
 
         if (inscritos.isEmpty()) {
-            return java.util.Map.of(
+            return Map.of(
                     "success", true,
                     "totalElegiveis", 0,
                     "totalEnviados", 0,
@@ -427,7 +394,7 @@ public class InscricaoCongressoService {
             }
         }
 
-        return java.util.Map.of(
+        return Map.of(
                 "success", true,
                 "totalElegiveis", inscritos.size(),
                 "totalEnviados", enviados,
@@ -440,7 +407,7 @@ public class InscricaoCongressoService {
     public void deletarInscricao(Integer id, String adminEmail) {
         Usuario admin = getAdmin(adminEmail);
         if (admin.getNivel() != NivelAdmin.suporte) {
-            throw new org.springframework.security.access.AccessDeniedException("Apenas usuários com nível de acesso Suporte podem excluir inscrições do congresso.");
+            throw new AccessDeniedException("Apenas usuários com nível de acesso Suporte podem excluir inscrições do congresso.");
         }
 
         InscricaoCongresso inscricao = inscricaoRepository.findById(id)
@@ -462,7 +429,7 @@ public class InscricaoCongressoService {
                     inscricao.getUnidade() == null ||
                     admin.getUnidade() == null ||
                     !inscricao.getUnidade().trim().equalsIgnoreCase(admin.getUnidade().trim())) {
-                throw new org.springframework.security.access.AccessDeniedException("Acesso restrito à sua própria unidade.");
+                throw new AccessDeniedException("Acesso restrito à sua própria unidade.");
             }
         }
 

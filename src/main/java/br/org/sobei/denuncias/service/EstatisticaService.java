@@ -1,12 +1,12 @@
 package br.org.sobei.denuncias.service;
 
+import br.org.sobei.denuncias.config.OficinaCotasConfig;
 import br.org.sobei.denuncias.dto.DenunciaStatsDto;
+import br.org.sobei.denuncias.dto.response.EstatisticaCongressoResponse;
 import br.org.sobei.denuncias.dto.response.EstatisticaResponse;
 import br.org.sobei.denuncias.model.entity.Denuncia;
-import br.org.sobei.denuncias.model.enums.TipoDenuncia;
-import br.org.sobei.denuncias.config.OficinaCotasConfig;
-import br.org.sobei.denuncias.dto.response.EstatisticaCongressoResponse;
 import br.org.sobei.denuncias.model.entity.InscricaoCongresso;
+import br.org.sobei.denuncias.model.enums.TipoDenuncia;
 import br.org.sobei.denuncias.repository.InscricaoCongressoRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -31,9 +31,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EstatisticaService {
 
+    private static final Pattern PATTERN_DIACRITICOS = Pattern.compile("\\p{M}");
+    private static final Pattern PATTERN_PAREN = Pattern.compile("\\((.*?)\\)");
+    private static final Pattern PATTERN_NAO_ALFANUM = Pattern.compile("[^a-z0-9]");
+    private static final Pattern PATTERN_SPLIT_OSC = Pattern.compile("\\s+[-/|:]\\s+");
+    private static final Pattern PATTERN_SIGLA_MAIUSCULA = Pattern.compile(".*\\b[A-Z]{2,}\\b.*");
+
     private final EntityManager entityManager;
     private final InscricaoCongressoRepository inscricaoRepository;
-
 
     @Transactional(readOnly = true)
     public EstatisticaResponse obterEstatisticas(String tipo, String unidade, String dataInicio, String dataFim) {
@@ -110,7 +115,27 @@ public class EstatisticaService {
                 .build();
     }
 
-    public record OficinaMetadata(String id, String ministrante, String tema, String categoria, int capacidade) {}
+    public record OficinaMetadata(
+            String id,
+            String ministrante,
+            String tema,
+            String categoria,
+            int capacidade,
+            String chaveTema,
+            String chaveMinistrante
+    ) {
+        public OficinaMetadata(String id, String ministrante, String tema, String categoria, int capacidade) {
+            this(
+                    id,
+                    ministrante,
+                    tema,
+                    categoria,
+                    capacidade,
+                    OficinaCotasConfig.normalizarTexto(tema),
+                    OficinaCotasConfig.normalizarTexto(ministrante)
+            );
+        }
+    }
 
     private static final List<OficinaMetadata> OFICINAS_CATALOGO = List.of(
             new OficinaMetadata("cleide-derenzi", "Cleide Derenzi Valadas", "Quais os saberes e fazeres tão específicos para, de verdade, atendermos às necessidades dos nossos bebês e crianças pequenas no cotidiano das instituições?", "Primeiríssima Infância", 26),
@@ -148,9 +173,67 @@ public class EstatisticaService {
                 ? Math.round(((double) totalInscritos / limiteVagas * 100) * 10.0) / 10.0
                 : 0.0;
 
-        long totalSobei = todas.stream()
-                .filter(i -> "SOBEI".equalsIgnoreCase(i.getTipoOsc()))
-                .count();
+        long totalSobei = 0;
+        long totalComOficina = 0;
+        long presentesGeral = 0;
+        long presentesDia11 = 0;
+        long presentesDia12 = 0;
+        long presentesAmbosDias = 0;
+
+        Map<String, List<InscricaoCongresso>> porUnidadeMap = new HashMap<>();
+        List<InscricaoCongresso> outrasInscricoes = new ArrayList<>();
+        Map<LocalDate, List<InscricaoCongresso>> porDataMap = new TreeMap<>();
+
+        int numOficinas = OFICINAS_CATALOGO.size();
+        long[] totalPorOficina = new long[numOficinas];
+        long[] sobeiPorOficina = new long[numOficinas];
+
+        LocalDate hoje = LocalDate.now();
+
+        // Passagem única sobre todas as inscrições para consolidar métricas em O(N)
+        for (InscricaoCongresso i : todas) {
+            boolean isSobei = "SOBEI".equalsIgnoreCase(i.getTipoOsc());
+            if (isSobei) {
+                totalSobei++;
+                String nomeUnidade = normalizarRotuloUnidade(i.getUnidade());
+                porUnidadeMap.computeIfAbsent(nomeUnidade, k -> new ArrayList<>()).add(i);
+            } else {
+                outrasInscricoes.add(i);
+            }
+
+            String of = i.getOficina() != null && !i.getOficina().isBlank()
+                    ? i.getOficina()
+                    : (i.getOficinaManha() != null && !i.getOficinaManha().isBlank()
+                        ? i.getOficinaManha()
+                        : i.getOficinaTarde());
+
+            boolean temOficina = of != null && !of.isBlank();
+            if (temOficina) {
+                totalComOficina++;
+                String chaveOf = OficinaCotasConfig.normalizarTexto(of);
+                if (!chaveOf.isEmpty()) {
+                    for (int idx = 0; idx < numOficinas; idx++) {
+                        if (isChaveOficinaMatch(chaveOf, OFICINAS_CATALOGO.get(idx))) {
+                            totalPorOficina[idx]++;
+                            if (isSobei) {
+                                sobeiPorOficina[idx]++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            boolean p11 = Boolean.TRUE.equals(i.getPresenteDia11());
+            boolean p12 = Boolean.TRUE.equals(i.getPresenteDia12());
+            if (Boolean.TRUE.equals(i.getPresente())) presentesGeral++;
+            if (p11) presentesDia11++;
+            if (p12) presentesDia12++;
+            if (p11 && p12) presentesAmbosDias++;
+
+            LocalDate dataInsc = i.getDataInscricao() != null ? i.getDataInscricao().toLocalDate() : hoje;
+            porDataMap.computeIfAbsent(dataInsc, k -> new ArrayList<>()).add(i);
+        }
+
         long totalOutrasOsc = totalInscritos - totalSobei;
 
         double percentualSobei = totalInscritos > 0
@@ -160,11 +243,6 @@ public class EstatisticaService {
                 ? Math.round(((double) totalOutrasOsc / totalInscritos * 100) * 10.0) / 10.0
                 : 0.0;
 
-        long totalComOficina = todas.stream()
-                .filter(i -> (i.getOficina() != null && !i.getOficina().isBlank()) ||
-                             (i.getOficinaManha() != null && !i.getOficinaManha().isBlank()) ||
-                             (i.getOficinaTarde() != null && !i.getOficinaTarde().isBlank()))
-                .count();
         long totalSemOficina = totalInscritos - totalComOficina;
 
         double percentualComOficina = totalInscritos > 0
@@ -174,39 +252,18 @@ public class EstatisticaService {
                 ? Math.round(((double) totalSemOficina / totalInscritos * 100) * 10.0) / 10.0
                 : 0.0;
 
-        long presentesGeral = todas.stream()
-                .filter(i -> Boolean.TRUE.equals(i.getPresente()))
-                .count();
-        long presentesDia11 = todas.stream()
-                .filter(i -> Boolean.TRUE.equals(i.getPresenteDia11()))
-                .count();
-        long presentesDia12 = todas.stream()
-                .filter(i -> Boolean.TRUE.equals(i.getPresenteDia12()))
-                .count();
-        long presentesAmbosDias = todas.stream()
-                .filter(i -> Boolean.TRUE.equals(i.getPresenteDia11()) && Boolean.TRUE.equals(i.getPresenteDia12()))
-                .count();
-
         // 1. Unidades SOBEI
-        Map<String, List<InscricaoCongresso>> porUnidadeMap = todas.stream()
-                .filter(i -> "SOBEI".equalsIgnoreCase(i.getTipoOsc()))
-                .collect(Collectors.groupingBy(i -> {
-                    String u = i.getUnidade();
-                    if (u == null || u.isBlank()) return "Não informada";
-                    String norm = u.trim();
-                    if (!norm.toUpperCase().startsWith("CEI ") && !norm.toUpperCase().startsWith("CEDESP") && !norm.toUpperCase().startsWith("CCINTER") && !norm.toUpperCase().startsWith("NCI") && !norm.toUpperCase().startsWith("MATRIZ")) {
-                        return "CEI " + norm;
-                    }
-                    return norm;
-                }));
-
+        final long finalTotalSobei = totalSobei;
         List<EstatisticaCongressoResponse.UnidadeCongressoStat> porUnidade = porUnidadeMap.entrySet().stream()
                 .map(e -> {
                     String nomeUnidade = e.getKey();
                     long total = e.getValue().size();
-                    long comOf = e.getValue().stream().filter(i -> (i.getOficina() != null && !i.getOficina().isBlank()) || (i.getOficinaManha() != null && !i.getOficinaManha().isBlank())).count();
+                    long comOf = e.getValue().stream()
+                            .filter(i -> (i.getOficina() != null && !i.getOficina().isBlank())
+                                    || (i.getOficinaManha() != null && !i.getOficinaManha().isBlank()))
+                            .count();
                     long semOf = total - comOf;
-                    double part = totalSobei > 0 ? Math.round(((double) total / totalSobei * 100) * 10.0) / 10.0 : 0.0;
+                    double part = finalTotalSobei > 0 ? Math.round(((double) total / finalTotalSobei * 100) * 10.0) / 10.0 : 0.0;
                     return EstatisticaCongressoResponse.UnidadeCongressoStat.builder()
                             .unidade(nomeUnidade)
                             .totalInscritos(total)
@@ -219,63 +276,45 @@ public class EstatisticaService {
                 .collect(Collectors.toList());
 
         // 2. Oficinas (23 oficinas)
-        List<EstatisticaCongressoResponse.OficinaCongressoStat> porOficina = OFICINAS_CATALOGO.stream()
-                .map(ofMeta -> {
-                    List<InscricaoCongresso> inscritosNestaOficina = todas.stream()
-                            .filter(i -> {
-                                String of = i.getOficina() != null ? i.getOficina() : (i.getOficinaManha() != null ? i.getOficinaManha() : i.getOficinaTarde());
-                                return isOficinaMatch(of, ofMeta);
-                            })
-                            .toList();
+        List<EstatisticaCongressoResponse.OficinaCongressoStat> porOficina = new ArrayList<>(numOficinas);
+        for (int idx = 0; idx < numOficinas; idx++) {
+            OficinaMetadata ofMeta = OFICINAS_CATALOGO.get(idx);
+            long totalOf = totalPorOficina[idx];
+            long sobeiOf = sobeiPorOficina[idx];
+            long outrasOf = totalOf - sobeiOf;
+            int capacidade = ofMeta.capacidade();
+            int restantes = Math.max(0, capacidade - (int) totalOf);
+            double taxaOcup = Math.round(((double) totalOf / capacidade * 100) * 10.0) / 10.0;
+            String status = taxaOcup >= 100.0 ? "ESGOTADA" : (taxaOcup >= 80.0 ? "QUASE_CHEIA" : "DISPONIVEL");
 
-                    long totalOf = inscritosNestaOficina.size();
-                    long sobeiOf = inscritosNestaOficina.stream().filter(i -> "SOBEI".equalsIgnoreCase(i.getTipoOsc())).count();
-                    long outrasOf = totalOf - sobeiOf;
-                    int capacidade = ofMeta.capacidade();
-                    int restantes = Math.max(0, capacidade - (int) totalOf);
-                    double taxaOcup = Math.round(((double) totalOf / capacidade * 100) * 10.0) / 10.0;
-                    String status = taxaOcup >= 100.0 ? "ESGOTADA" : (taxaOcup >= 80.0 ? "QUASE_CHEIA" : "DISPONIVEL");
-
-                    return EstatisticaCongressoResponse.OficinaCongressoStat.builder()
-                            .id(ofMeta.id())
-                            .tema(ofMeta.tema())
-                            .ministrante(ofMeta.ministrante())
-                            .categoria(ofMeta.categoria())
-                            .capacidadeSala(capacidade)
-                            .totalInscritos(totalOf)
-                            .inscritosSobei(sobeiOf)
-                            .inscritosOutrasOsc(outrasOf)
-                            .vagasRestantes(restantes)
-                            .percentualOcupacao(taxaOcup)
-                            .status(status)
-                            .build();
-                })
-                .sorted(Comparator.comparingLong(EstatisticaCongressoResponse.OficinaCongressoStat::getTotalInscritos).reversed())
-                .collect(Collectors.toList());
+            porOficina.add(EstatisticaCongressoResponse.OficinaCongressoStat.builder()
+                    .id(ofMeta.id())
+                    .tema(ofMeta.tema())
+                    .ministrante(ofMeta.ministrante())
+                    .categoria(ofMeta.categoria())
+                    .capacidadeSala(capacidade)
+                    .totalInscritos(totalOf)
+                    .inscritosSobei(sobeiOf)
+                    .inscritosOutrasOsc(outrasOf)
+                    .vagasRestantes(restantes)
+                    .percentualOcupacao(taxaOcup)
+                    .status(status)
+                    .build());
+        }
+        porOficina.sort(Comparator.comparingLong(EstatisticaCongressoResponse.OficinaCongressoStat::getTotalInscritos).reversed());
 
         // 3. Outras OSCs (unificando pequenas variações de nomes como CT-Vidas, CT Vidas, etc.)
-        List<EstatisticaCongressoResponse.OutraOscStat> porOutraOsc = agruparOutrasOscs(todas, totalOutrasOsc);
+        List<EstatisticaCongressoResponse.OutraOscStat> porOutraOsc = agruparOutrasOscs(outrasInscricoes, totalOutrasOsc);
 
         // 4. Evolução Temporal (Gráfico de Crescimento)
         DateTimeFormatter dtfDiaMes = DateTimeFormatter.ofPattern("dd/MM");
         DateTimeFormatter dtfIso = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        Map<LocalDate, List<InscricaoCongresso>> porDataMap = todas.stream()
-                .collect(Collectors.groupingBy(i -> {
-                    if (i.getDataInscricao() != null) {
-                        return i.getDataInscricao().toLocalDate();
-                    }
-                    return LocalDate.now();
-                }));
-
-        List<LocalDate> datasOrdenadas = porDataMap.keySet().stream()
-                .sorted()
-                .toList();
-
-        List<EstatisticaCongressoResponse.EvolucaoInscricaoStat> evolucao = new ArrayList<>();
+        List<EstatisticaCongressoResponse.EvolucaoInscricaoStat> evolucao = new ArrayList<>(porDataMap.size());
         long acumulador = 0;
-        for (LocalDate d : datasOrdenadas) {
-            List<InscricaoCongresso> inscritosNoDia = porDataMap.get(d);
+        for (Map.Entry<LocalDate, List<InscricaoCongresso>> entry : porDataMap.entrySet()) {
+            LocalDate d = entry.getKey();
+            List<InscricaoCongresso> inscritosNoDia = entry.getValue();
             long noDia = inscritosNoDia.size();
             acumulador += noDia;
             long sobeiDia = inscritosNoDia.stream().filter(i -> "SOBEI".equalsIgnoreCase(i.getTipoOsc())).count();
@@ -314,25 +353,29 @@ public class EstatisticaService {
                 .build();
     }
 
-    private boolean isOficinaMatch(String ofInscrito, OficinaMetadata ofMeta) {
-        if (ofInscrito == null || ofInscrito.isBlank()) return false;
-        String chave = OficinaCotasConfig.normalizarTexto(ofInscrito);
-        String chaveTema = OficinaCotasConfig.normalizarTexto(ofMeta.tema());
-        String chaveMin = OficinaCotasConfig.normalizarTexto(ofMeta.ministrante());
-        if (chave.equals(chaveTema) || chave.equals(chaveMin)) return true;
-        if (chave.contains(chaveTema) || chaveTema.contains(chave)) return true;
-        if (chaveMin.length() >= 8 && (chave.contains(chaveMin) || chaveMin.contains(chave))) return true;
-        return false;
+    private String normalizarRotuloUnidade(String u) {
+        if (u == null || u.isBlank()) return "Não informada";
+        String norm = u.trim();
+        String upper = norm.toUpperCase();
+        if (!upper.startsWith("CEI ") && !upper.startsWith("CEDESP") && !upper.startsWith("CCINTER")
+                && !upper.startsWith("NCI") && !upper.startsWith("MATRIZ")) {
+            return "CEI " + norm;
+        }
+        return norm;
+    }
+
+    private boolean isChaveOficinaMatch(String chaveInscrito, OficinaMetadata ofMeta) {
+        String chaveTema = ofMeta.chaveTema();
+        String chaveMin = ofMeta.chaveMinistrante();
+        if (chaveInscrito.equals(chaveTema) || chaveInscrito.equals(chaveMin)) return true;
+        if (chaveInscrito.contains(chaveTema) || chaveTema.contains(chaveInscrito)) return true;
+        return chaveMin.length() >= 8 && (chaveInscrito.contains(chaveMin) || chaveMin.contains(chaveInscrito));
     }
 
     /**
      * Unifica variações e pequenas diferenças no nome de outras instituições (ex: CT-Vidas, CT Vidas, CTVidas, etc.)
      */
-    private List<EstatisticaCongressoResponse.OutraOscStat> agruparOutrasOscs(List<InscricaoCongresso> todas, long totalOutrasOsc) {
-        List<InscricaoCongresso> outrasInscricoes = todas.stream()
-                .filter(i -> !"SOBEI".equalsIgnoreCase(i.getTipoOsc()))
-                .toList();
-
+    private List<EstatisticaCongressoResponse.OutraOscStat> agruparOutrasOscs(List<InscricaoCongresso> outrasInscricoes, long totalOutrasOsc) {
         if (outrasInscricoes.isEmpty()) {
             return Collections.emptyList();
         }
@@ -350,7 +393,7 @@ public class EstatisticaService {
             gruposChave.computeIfAbsent(chave, k -> new ArrayList<>()).add(raw);
         }
 
-        List<EstatisticaCongressoResponse.OutraOscStat> resultado = new ArrayList<>();
+        List<EstatisticaCongressoResponse.OutraOscStat> resultado = new ArrayList<>(gruposChave.size());
         for (Map.Entry<String, List<String>> entry : gruposChave.entrySet()) {
             List<String> ocorrencias = entry.getValue();
             long total = ocorrencias.size();
@@ -375,25 +418,25 @@ public class EstatisticaService {
             return "outras";
         }
         // 1. Remover acentos
-        String semAcento = Normalizer.normalize(raw.trim(), Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
+        String semAcento = PATTERN_DIACRITICOS.matcher(Normalizer.normalize(raw.trim(), Normalizer.Form.NFD))
+                .replaceAll("")
                 .toLowerCase();
 
         // 2. Se houver sigla/código entre parênteses, ex: 'Centro de Treinamento (CT-Vidas)'
-        Matcher parenMatcher = Pattern.compile("\\((.*?)\\)").matcher(semAcento);
+        Matcher parenMatcher = PATTERN_PAREN.matcher(semAcento);
         if (parenMatcher.find()) {
-            String inside = parenMatcher.group(1).replaceAll("[^a-z0-9]", "");
+            String inside = PATTERN_NAO_ALFANUM.matcher(parenMatcher.group(1)).replaceAll("");
             if (inside.length() >= 2 && inside.length() <= 12) {
                 return inside;
             }
         }
 
         // 3. Se houver separador de cláusula com espaços, ex: 'CTVidas - Centro de Treinamento das Vidas'
-        String[] partes = semAcento.split("\\s+[-/|:]\\s+");
+        String[] partes = PATTERN_SPLIT_OSC.split(semAcento);
         String principal = partes[0].trim();
 
         // 4. Remover pontuação e manter apenas caracteres alfanuméricos
-        String alfa = principal.replaceAll("[^a-z0-9]", "");
+        String alfa = PATTERN_NAO_ALFANUM.matcher(principal).replaceAll("");
         return alfa.isEmpty() ? "outras" : alfa;
     }
 
@@ -415,8 +458,8 @@ public class EstatisticaService {
                     if (b.contains(" - ")) scoreB -= 5L;
 
                     // Prefere siglas em caixa alta (ex: CT)
-                    if (a.matches(".*\\b[A-Z]{2,}\\b.*")) scoreA += 3L;
-                    if (b.matches(".*\\b[A-Z]{2,}\\b.*")) scoreB += 3L;
+                    if (PATTERN_SIGLA_MAIUSCULA.matcher(a).matches()) scoreA += 3L;
+                    if (PATTERN_SIGLA_MAIUSCULA.matcher(b).matches()) scoreB += 3L;
 
                     // Prefere primeira letra maiúscula
                     if (Character.isUpperCase(a.charAt(0))) scoreA += 2L;
@@ -431,4 +474,3 @@ public class EstatisticaService {
                 .orElse(nomes.get(0));
     }
 }
-
