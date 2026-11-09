@@ -26,6 +26,12 @@ public class CandidaturaService {
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
 
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            ".pdf",
+            ".doc",
+            ".docx"
+    );
+
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
     @Transactional
@@ -37,6 +43,20 @@ public class CandidaturaService {
 
         if (vaga.getStatus() != StatusVaga.ATIVO) {
             throw new IllegalArgumentException("Esta vaga não está mais aceitando candidaturas.");
+        }
+
+        // Validações dos campos de texto
+        if (nomeCompleto == null || nomeCompleto.isBlank() || nomeCompleto.trim().length() > 255) {
+            throw new IllegalArgumentException("Nome completo inválido (máximo 255 caracteres).");
+        }
+        if (email == null || email.isBlank() || email.trim().length() > 150) {
+            throw new IllegalArgumentException("E-mail inválido (máximo 150 caracteres).");
+        }
+        if (telefone == null || telefone.isBlank() || telefone.trim().length() > 20) {
+            throw new IllegalArgumentException("Telefone inválido (máximo 20 caracteres).");
+        }
+        if (cartaApresentacao != null && cartaApresentacao.length() > 5000) {
+            throw new IllegalArgumentException("A carta de apresentação não pode exceder 5000 caracteres.");
         }
 
         // Validações do arquivo
@@ -53,19 +73,34 @@ public class CandidaturaService {
             throw new IllegalArgumentException("Apenas arquivos PDF, DOC ou DOCX são aceitos.");
         }
 
+        String originalFilename = curriculo.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isBlank()) {
+            throw new IllegalArgumentException("Nome de arquivo inválido.");
+        }
+
+        String lowerFilename = originalFilename.toLowerCase();
+        boolean validExtension = ALLOWED_EXTENSIONS.stream().anyMatch(lowerFilename::endsWith);
+        if (!validExtension) {
+            throw new IllegalArgumentException("Extensão de arquivo inválida. Apenas arquivos .pdf, .doc e .docx são aceitos.");
+        }
+
+        // Sanitização contra Header Injection / Path Traversal usando allowlist de caracteres seguros
+        String sanitizedFilename = originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_").trim();
+        if (sanitizedFilename.isBlank()) {
+            sanitizedFilename = "curriculo.pdf";
+        }
+
         // Upload para o Cloudflare R2
         String key = storageService.upload(curriculo, "curriculos");
 
-        String originalFilename = curriculo.getOriginalFilename();
-
         Candidatura candidatura = Candidatura.builder()
                 .vaga(vaga)
-                .nomeCompleto(nomeCompleto)
-                .email(email)
-                .telefone(telefone)
+                .nomeCompleto(nomeCompleto.trim())
+                .email(email.trim().toLowerCase())
+                .telefone(telefone.trim())
                 .cartaApresentacao(cartaApresentacao)
                 .curriculoPath(key)
-                .curriculoNome(originalFilename != null ? originalFilename : key)
+                .curriculoNome(sanitizedFilename)
                 .build();
 
         candidaturaRepository.save(candidatura);
@@ -102,4 +137,3 @@ public class CandidaturaService {
         return candidatura.getVaga().getUnidade();
     }
 }
-

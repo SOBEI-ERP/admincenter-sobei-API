@@ -56,9 +56,9 @@ public class CertificadoCongressoService {
             // 2. Obter a camada de sobreposição da página 1
             PdfContentByte over = stamper.getOverContent(1);
 
-            // 3. Preparar dados do participante
+            // 3. Preparar dados do participante com sanitização contra caracteres de controle
             String nome = (inscricao.getNomeCompleto() != null && !inscricao.getNomeCompleto().isBlank())
-                    ? inscricao.getNomeCompleto().toUpperCase().trim()
+                    ? inscricao.getNomeCompleto().replaceAll("[\\r\\n\\t\\u0000]", " ").replaceAll("\\s+", " ").toUpperCase().trim()
                     : "PARTICIPANTE";
             String cpfFormatado = formatarCpf(inscricao.getCpf());
 

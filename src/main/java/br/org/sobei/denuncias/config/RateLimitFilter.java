@@ -15,14 +15,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
- * Filtro de Rate Limiting por IP.
+ * Filtro de Rate Limiting por IP com proteção contra bypass de headers e exaustão de memória.
  * Limita requisições para prevenir abuso e ataques de força bruta.
- * <p>
+ *
  * Limites:
- * - Rotas admin (/api/admin/**): 5 requisições por janela de 10 segundos por IP
- * - Rotas públicas (/api/public/**): 5 requisições por janela de 10 segundos por IP
+ * - Rotas admin (/api/admin/**): 30 requisições por janela de 10 segundos por IP
+ * - Rotas públicas (/api/public/**): 10 requisições por janela de 10 segundos por IP
  * - Swagger/docs: sem limite
  */
 @Component
@@ -32,6 +33,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int ADMIN_REQUEST_LIMIT = 30;
     private static final long WINDOW_MS = 10_000L; // 10 segundos
     private static final int RETRY_AFTER_SECONDS = 10;
+    private static final int MAX_TRACKED_IPS = 10_000;
+
+    private static final Pattern IPV4_PATTERN = Pattern.compile(
+            "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+    );
+    private static final Pattern IPV6_PATTERN = Pattern.compile(
+            "^[0-9a-fA-F:]{2,39}$"
+    );
 
     private final Map<String, ConcurrentLinkedDeque<Long>> requestCounts = new ConcurrentHashMap<>();
 
@@ -41,7 +50,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             Thread t = new Thread(r, "rate-limit-cleanup");
             t.setDaemon(true);
             return t;
-        }).scheduleAtFixedRate(this::cleanupStaleEntries, 5, 5, TimeUnit.MINUTES);
+        }).scheduleAtFixedRate(this::cleanupStaleEntries, 3, 3, TimeUnit.MINUTES);
     }
 
     @Override
@@ -91,6 +100,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         long now = System.currentTimeMillis();
         long windowStart = now - WINDOW_MS;
 
+        // Se atingir o teto de entradas, força a limpeza imediata para proteger a memória heap
+        if (requestCounts.size() >= MAX_TRACKED_IPS) {
+            cleanupStaleEntries();
+            if (requestCounts.size() >= MAX_TRACKED_IPS) {
+                requestCounts.clear(); // Prevenção absoluta contra DoS de memória
+            }
+        }
+
         ConcurrentLinkedDeque<Long> timestamps = requestCounts.computeIfAbsent(key, k -> new ConcurrentLinkedDeque<>());
 
         // Remove timestamps antigos da ponta esquerda de forma muito eficiente O(1)
@@ -107,16 +124,38 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String resolveClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            // Pega o primeiro IP (IP real do cliente)
-            return xForwardedFor.split(",")[0].trim();
+        // 1. Cloudflare connecting IP (prioridade máxima se presente)
+        String cfIp = request.getHeader("CF-Connecting-IP");
+        if (isValidIp(cfIp)) {
+            return cfIp.trim();
         }
+
+        // 2. X-Real-IP
         String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isBlank()) {
+        if (isValidIp(xRealIp)) {
             return xRealIp.trim();
         }
-        return request.getRemoteAddr();
+
+        // 3. X-Forwarded-For (pega o primeiro IP e valida formato)
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            String firstIp = xForwardedFor.split(",")[0].trim();
+            if (isValidIp(firstIp)) {
+                return firstIp;
+            }
+        }
+
+        // 4. Fallback confiável para o socket remoto direto
+        String remoteAddr = request.getRemoteAddr();
+        return (remoteAddr != null && !remoteAddr.isBlank()) ? remoteAddr : "unknown";
+    }
+
+    private boolean isValidIp(String ip) {
+        if (ip == null || ip.isBlank() || ip.length() > 45) {
+            return false;
+        }
+        String trimmed = ip.trim();
+        return IPV4_PATTERN.matcher(trimmed).matches() || IPV6_PATTERN.matcher(trimmed).matches();
     }
 
     private void cleanupStaleEntries() {

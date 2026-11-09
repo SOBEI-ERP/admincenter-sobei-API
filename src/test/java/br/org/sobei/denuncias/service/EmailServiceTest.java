@@ -104,4 +104,18 @@ class EmailServiceTest {
         assertNotNull(ex.getMessage());
         assertTrue(ex.getMessage().toLowerCase().contains("resend"), "A mensagem de erro deve referenciar o serviço Resend");
     }
+
+    @Test
+    @DisplayName("Deve sanitizar tags HTML e caracteres maliciosos no nome do participante no corpo do email")
+    void deveSanitizarTagsHtmlNoNome() {
+        inscricao.setNomeCompleto("<script>alert('xss')</script>João & Maria");
+
+        // Invoca o método privado via reflexão
+        String htmlCorpo = ReflectionTestUtils.invokeMethod(emailService, "buildCorpoEmailCertificado", "<script>alert('xss')</script>&João Maria");
+
+        assertNotNull(htmlCorpo);
+        assertFalse(htmlCorpo.contains("<script>"), "Corpo do email não deve conter tags HTML não escapadas");
+        assertTrue(htmlCorpo.contains("&lt;script&gt;"), "Tags HTML devem ser devidamente escapadas como entidades HTML");
+        assertTrue(htmlCorpo.contains("&amp;"), "E comercial deve ser escapado");
+    }
 }

@@ -185,4 +185,52 @@ class DenunciaServiceTest {
 
         assertEquals("Protocolo não encontrado.", exception.getMessage());
     }
+
+    @Test
+    void testConsultarPorProtocoloEmBrancoOuNulo() {
+        assertThrows(IllegalArgumentException.class, () -> denunciaService.consultarPorProtocolo(null));
+        assertThrows(IllegalArgumentException.class, () -> denunciaService.consultarPorProtocolo("   "));
+    }
+
+    @Test
+    void testCriarDenunciaIdentificadaSemNomeFalha() {
+        CriarDenunciaRequest request = new CriarDenunciaRequest();
+        request.setTipo(TipoDenuncia.IDENTIFICADA);
+        request.setUnidade("CCINTER");
+        request.setDescricao("Descrição válida para teste");
+        request.setEmail("teste@sobei.org.br");
+        request.setTelefone("(11) 99999-9999");
+        request.setNomeCompleto("   ");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> denunciaService.criarDenuncia(request));
+        assertEquals("Para denúncias identificadas, nome completo, e-mail e telefone são obrigatórios.", ex.getMessage());
+    }
+
+    @Test
+    void testCriarDenunciaIdentificadaSemEmailFalha() {
+        CriarDenunciaRequest request = new CriarDenunciaRequest();
+        request.setTipo(TipoDenuncia.IDENTIFICADA);
+        request.setUnidade("CCINTER");
+        request.setDescricao("Descrição válida para teste");
+        request.setNomeCompleto("João Silva");
+        request.setTelefone("(11) 99999-9999");
+        request.setEmail("");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> denunciaService.criarDenuncia(request));
+        assertEquals("Para denúncias identificadas, nome completo, e-mail e telefone são obrigatórios.", ex.getMessage());
+    }
+
+    @Test
+    void testCriarDenunciaIdentificadaSemTelefoneFalha() {
+        CriarDenunciaRequest request = new CriarDenunciaRequest();
+        request.setTipo(TipoDenuncia.IDENTIFICADA);
+        request.setUnidade("CCINTER");
+        request.setDescricao("Descrição válida para teste");
+        request.setNomeCompleto("João Silva");
+        request.setEmail("joao@sobei.org.br");
+        request.setTelefone(null);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> denunciaService.criarDenuncia(request));
+        assertEquals("Para denúncias identificadas, nome completo, e-mail e telefone são obrigatórios.", ex.getMessage());
+    }
 }
