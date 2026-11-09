@@ -25,6 +25,9 @@ public class JwtService {
     @Value("${app.jwt.expiration-ms}")
     private long jwtExpirationMs;
 
+    @Value("${spring.profiles.active:dev}")
+    private String activeProfile;
+
     private Key signingKey;
 
     @PostConstruct
@@ -32,6 +35,10 @@ public class JwtService {
         if (secretKey == null || secretKey.isBlank() || secretKey.length() < 32) {
             throw new IllegalStateException(
                     "JWT_SECRET não configurado ou muito curto. Defina a variável de ambiente JWT_SECRET com pelo menos 32 caracteres.");
+        }
+        if ("prod".equalsIgnoreCase(activeProfile) && "sobeiprotocolosecretkey2026superseguracommaisde256bitsdelargura".equals(secretKey)) {
+            throw new IllegalStateException(
+                    "ERRO CRÍTICO DE SEGURANÇA: O ambiente de produção (prod) está utilizando a chave secreta JWT padrão de desenvolvimento. Defina uma variável de ambiente JWT_SECRET forte e única.");
         }
         byte[] keyBytes = secretKey.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);

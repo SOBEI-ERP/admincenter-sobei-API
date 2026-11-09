@@ -11,6 +11,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -197,6 +198,7 @@ public class EmailService {
      */
     private String buildCorpoEmailCertificado(String nome) {
         String primeiroNome = (nome != null && !nome.isBlank()) ? nome.split(" ")[0] : "Participante";
+        String primeiroNomeSeguro = HtmlUtils.htmlEscape(primeiroNome);
         String template = """
             <!DOCTYPE html>
             <html lang="pt-BR">
@@ -252,6 +254,6 @@ public class EmailService {
             </body>
             </html>
             """;
-        return template.replace("{{NOME}}", primeiroNome);
+        return template.replace("{{NOME}}", primeiroNomeSeguro);
     }
 }

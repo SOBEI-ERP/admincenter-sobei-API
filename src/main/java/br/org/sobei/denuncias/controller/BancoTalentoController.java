@@ -7,12 +7,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.List;
 
@@ -60,9 +62,14 @@ public class BancoTalentoController {
             contentType = "application/msword";
         }
 
+        ContentDisposition contentDisposition = ContentDisposition.attachment()
+                .filename(filename, StandardCharsets.UTF_8)
+                .build();
+
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                .header("X-Content-Type-Options", "nosniff")
                 .body(fileContent);
     }
 }

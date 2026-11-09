@@ -11,6 +11,10 @@ import br.org.sobei.denuncias.repository.InscricaoCongressoRepository;
 import br.org.sobei.denuncias.repository.UsuarioRepository;
 import br.org.sobei.denuncias.util.CpfValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -143,6 +147,44 @@ public class InscricaoCongressoService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InscricaoCongressoResponse> listarPaginado(
+            String adminEmail, String termo, String unidade, String tipoOsc, Boolean presente, String statusPresenca, int page, int size) {
+        Usuario admin = getAdmin(adminEmail);
+        if (admin.getNivel() == NivelAdmin.dp) {
+            throw new AccessDeniedException("Acesso restrito: departamento pessoal não tem acesso às inscrições do congresso.");
+        }
+
+        int pageNum = Math.max(0, page);
+        int pageSize = size > 0 ? size : 100;
+        Pageable pageable = PageRequest.of(pageNum, pageSize, Sort.by(Sort.Direction.ASC, "nomeCompleto"));
+
+        final String fTermo = (termo != null && !termo.trim().isBlank()) ? termo.trim().toLowerCase() : null;
+        final String rawCpf = (fTermo != null) ? PATTERN_NAO_DIGITOS.matcher(fTermo).replaceAll("") : null;
+        final String fTermoCpf = (rawCpf != null && !rawCpf.isBlank()) ? rawCpf : null;
+
+        final String fUnidade = (unidade != null && !unidade.trim().isBlank()) ? unidade.trim() : null;
+        final String fTipoOsc = (tipoOsc != null && !tipoOsc.trim().isBlank()) ? tipoOsc.trim() : null;
+        final String fStatusPresenca = (statusPresenca != null && !statusPresenca.trim().isBlank()) ? statusPresenca.trim() : null;
+        final Boolean fPresente = presente;
+
+        Page<InscricaoCongresso> pageResult;
+
+        if (admin.getNivel() == NivelAdmin.coordenadora || admin.getNivel() == NivelAdmin.diretora) {
+            final String fUnidadeAdmin = admin.getUnidade() != null ? admin.getUnidade().trim() : "";
+            if (fUnidadeAdmin.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            pageResult = inscricaoRepository.buscarPorUnidadeCoordenadoraPaginado(fUnidadeAdmin, fTermo, fTermoCpf, fStatusPresenca, fPresente, pageable);
+        } else if (fTermo == null && fUnidade == null && fTipoOsc == null && fStatusPresenca == null && fPresente == null) {
+            pageResult = inscricaoRepository.findAll(pageable);
+        } else {
+            pageResult = inscricaoRepository.buscarComFiltrosPaginado(fTermo, fTermoCpf, fUnidade, fTipoOsc, fStatusPresenca, fPresente, pageable);
+        }
+
+        return pageResult.map(this::toResponse);
     }
 
     private List<InscricaoCongresso> listarEntidades(String adminEmail, String termo, String unidade, String tipoOsc, Boolean presente) {

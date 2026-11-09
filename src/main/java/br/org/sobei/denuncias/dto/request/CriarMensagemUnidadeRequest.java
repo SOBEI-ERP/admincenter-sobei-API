@@ -29,5 +29,6 @@ public class CriarMensagemUnidadeRequest {
     private String telefone;
 
     @NotBlank(message = "A mensagem é obrigatória")
+    @Size(max = 5000, message = "A mensagem não pode exceder 5000 caracteres")
     private String mensagem;
 }
