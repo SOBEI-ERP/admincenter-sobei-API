@@ -24,15 +24,33 @@ public class InscricaoCongressoAdminController {
 
     private final InscricaoCongressoService inscricaoService;
 
-    @Operation(summary = "Listar inscritos no Congresso", description = "Lista inscritos com filtros por unidade, OSC, status de presença e busca por nome ou CPF.")
+    @Operation(summary = "Listar inscritos no Congresso", description = "Lista inscritos com filtros por unidade, OSC, status de presença e busca por nome ou CPF com suporte a paginação progressiva.")
     @GetMapping
     public ResponseEntity<List<InscricaoCongressoResponse>> listar(
             Principal principal,
             @Parameter(description = "Busca por Nome ou CPF") @RequestParam(required = false) String termo,
             @Parameter(description = "Filtrar por Unidade") @RequestParam(required = false) String unidade,
             @Parameter(description = "Filtrar por tipo de OSC (SOBEI ou OUTRA)") @RequestParam(required = false) String tipoOsc,
-            @Parameter(description = "Filtrar por presença confirmada (true/false)") @RequestParam(required = false) Boolean presente
+            @Parameter(description = "Filtrar por presença confirmada (true/false)") @RequestParam(required = false) Boolean presente,
+            @Parameter(description = "Filtrar por status de presença detalhado (dia11_presente, dia12_presente, ambos_presente, nenhum_presente)") @RequestParam(required = false) String statusPresenca,
+            @Parameter(description = "Número da página (base 0)") @RequestParam(required = false) Integer page,
+            @Parameter(description = "Tamanho da página (padrão 100)") @RequestParam(required = false) Integer size
     ) {
+        if (page != null || size != null) {
+            int pageNum = page != null ? page : 0;
+            int pageSize = (size != null && size > 0) ? size : 100;
+            org.springframework.data.domain.Page<InscricaoCongressoResponse> paged =
+                    inscricaoService.listarPaginado(principal.getName(), termo, unidade, tipoOsc, presente, statusPresenca, pageNum, pageSize);
+
+            return ResponseEntity.ok()
+                    .header("X-Total-Count", String.valueOf(paged.getTotalElements()))
+                    .header("X-Total-Pages", String.valueOf(paged.getTotalPages()))
+                    .header("X-Current-Page", String.valueOf(paged.getNumber()))
+                    .header("X-Page-Size", String.valueOf(paged.getSize()))
+                    .header("X-Has-Next", String.valueOf(paged.hasNext()))
+                    .body(paged.getContent());
+        }
+
         return ResponseEntity.ok(inscricaoService.listar(principal.getName(), termo, unidade, tipoOsc, presente));
     }
 
