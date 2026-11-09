@@ -13,12 +13,16 @@ import org.springframework.stereotype.Service;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 public class CertificadoCongressoService {
 
     private static final String TEMPLATE_PDF_PATH = "templates/template-certificado.pdf";
+    private static final Pattern PATTERN_NAO_DIGITOS = Pattern.compile("\\D+");
 
     // Cor de fundo creme do certificado (#FFF4BC), extraída do template original
     private static final Color COR_FUNDO = new Color(255, 244, 188);
@@ -28,6 +32,10 @@ public class CertificadoCongressoService {
 
     private static final String FONT_MEDIUM_PATH = "fonts/Montserrat-Medium.ttf";
     private static final String FONT_SEMIBOLD_PATH = "fonts/Montserrat-SemiBold.ttf";
+
+    // Cache em memória de template e fontes para evitar I/O repetido em disparos em lote
+    private volatile byte[] cachedTemplateBytes;
+    private final Map<String, byte[]> cachedFontBytes = new ConcurrentHashMap<>(4);
 
     /**
      * Gera o certificado do participante em formato PDF,
@@ -39,12 +47,8 @@ public class CertificadoCongressoService {
      */
     public byte[] gerarCertificadoPdf(InscricaoCongresso inscricao) {
         try {
-            // 1. Carregar o PDF template original
-            ClassPathResource templateResource = new ClassPathResource(TEMPLATE_PDF_PATH);
-            PdfReader reader;
-            try (InputStream is = templateResource.getInputStream()) {
-                reader = new PdfReader(is);
-            }
+            // 1. Carregar o PDF template original a partir do cache em memória
+            PdfReader reader = new PdfReader(getTemplateBytes());
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             PdfStamper stamper = new PdfStamper(reader, out);
@@ -59,8 +63,6 @@ public class CertificadoCongressoService {
             String cpfFormatado = formatarCpf(inscricao.getCpf());
 
             // 4. Cobrir apenas a Linha 2 ("confere a [NOME], CPF Nº [CPF],") com a cor de fundo oficial (#FFF4BC)
-            // Coordenadas iText (origem inferior-esquerda, página 283 x 201):
-            // y_bottom = 105.1f, y_top = 112.9f (altura 7.8f), x = 20.0f a 263.0f (largura 243.0f)
             over.saveState();
             over.setColorFill(COR_FUNDO);
             over.rectangle(20.0f, 105.1f, 243.0f, 7.8f);
@@ -112,17 +114,43 @@ public class CertificadoCongressoService {
         }
     }
 
+    private byte[] getTemplateBytes() throws Exception {
+        byte[] bytes = cachedTemplateBytes;
+        if (bytes == null) {
+            synchronized (this) {
+                bytes = cachedTemplateBytes;
+                if (bytes == null) {
+                    ClassPathResource templateResource = new ClassPathResource(TEMPLATE_PDF_PATH);
+                    try (InputStream is = templateResource.getInputStream()) {
+                        bytes = is.readAllBytes();
+                        cachedTemplateBytes = bytes;
+                    }
+                }
+            }
+        }
+        return bytes;
+    }
+
     /**
-     * Carrega fonte TrueType a partir dos recursos ou aplica fallback para fonte padrão.
+     * Carrega fonte TrueType a partir do cache em memória ou aplica fallback para fonte padrão.
      */
     private BaseFont loadBaseFont(String resourcePath, String fallbackStandardFont) {
         try {
-            ClassPathResource res = new ClassPathResource(resourcePath);
-            if (res.exists()) {
-                try (InputStream is = res.getInputStream()) {
-                    byte[] fontBytes = is.readAllBytes();
-                    return BaseFont.createFont(resourcePath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
+            byte[] fontBytes = cachedFontBytes.computeIfAbsent(resourcePath, path -> {
+                try {
+                    ClassPathResource res = new ClassPathResource(path);
+                    if (res.exists()) {
+                        try (InputStream is = res.getInputStream()) {
+                            return is.readAllBytes();
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Não foi possível ler bytes da fonte {}: {}", path, e.getMessage());
                 }
+                return null;
+            });
+            if (fontBytes != null) {
+                return BaseFont.createFont(resourcePath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
             }
         } catch (Exception e) {
             log.warn("Não foi possível carregar fonte customizada {}: {}. Usando fallback {}.", resourcePath, e.getMessage(), fallbackStandardFont);
@@ -141,7 +169,7 @@ public class CertificadoCongressoService {
         if (cpf == null || cpf.isBlank()) {
             return "—";
         }
-        String digits = cpf.replaceAll("\\D", "");
+        String digits = PATTERN_NAO_DIGITOS.matcher(cpf).replaceAll("");
         if (digits.length() == 11) {
             return String.format("%s.%s.%s-%s",
                     digits.substring(0, 3),

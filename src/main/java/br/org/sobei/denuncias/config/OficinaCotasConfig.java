@@ -1,15 +1,26 @@
 package br.org.sobei.denuncias.config;
 
 import java.text.Normalizer;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 /**
  * Matriz de cotas máximas de participantes por unidade escolar nas oficinas do Congresso SOBEI 2026.
  * Fonte: _PESSOAS POR OFICINA - CONGRESSO 2026.xlsx
  */
 public final class OficinaCotasConfig {
+
+    private static final Pattern PATTERN_PREFIXO_UNIDADE = Pattern.compile("^(CEI|CEDESP|CCINTER|NCI|TELECENTRO)\\s+");
+    private static final Pattern PATTERN_NAO_ALFANUM = Pattern.compile("[^A-Z0-9]");
+    private static final Pattern PATTERN_ESPACOS = Pattern.compile("\\s+");
+    private static final Pattern PATTERN_PONTUACAO_FINAL = Pattern.compile("[.,;:!?]+$");
+    private static final Pattern PATTERN_DIACRITICOS = Pattern.compile("[\\p{InCombiningDiacriticalMarks}]");
+
+    private static final int MAX_CACHE_SIZE = 4096;
+    private static final Map<String, String> CACHE_TEXTO = new ConcurrentHashMap<>(128);
+    private static final Map<String, String> CACHE_UNIDADE = new ConcurrentHashMap<>(64);
 
     private static final Map<String, Map<String, Integer>> COTAS = new HashMap<>();
 
@@ -289,38 +300,56 @@ public final class OficinaCotasConfig {
     }
 
     public static String normalizarUnidade(String unidade) {
-        if (unidade == null) return "";
+        if (unidade == null || unidade.isEmpty()) return "";
+        String cached = CACHE_UNIDADE.get(unidade);
+        if (cached != null) {
+            return cached;
+        }
+
         String u = unidade.trim().toUpperCase();
-        u = u.replaceAll("^(CEI|CEDESP|CCINTER|NCI|TELECENTRO)\\s+", "");
+        u = PATTERN_PREFIXO_UNIDADE.matcher(u).replaceFirst("");
         String limpo = removerAcentos(u);
 
-        if (limpo.contains("MONTANARO")) return "MONTANARO";
-        if (limpo.contains("LEBLON")) return "LEBLON";
-        if (limpo.contains("IMBUIA")) return "IMBUIAS";
-        if (limpo.contains("BELA VISTA") || limpo.contains("BELAVISTA")) return "BELA_VISTA";
-        if (limpo.contains("SABIA")) return "SABIAS";
-        if (limpo.contains("ACACIA")) return "ACACIAS";
-        if (limpo.contains("ORQUIDEA")) return "ORQUIDEAS";
-        if (limpo.contains("CEDRO")) return "CEDRO";
-        if (limpo.contains("OLIVEIRA")) return "OLIVEIRAS";
-        if (limpo.contains("MACAUBA")) return "MACAUBA";
-        if (limpo.contains("CEREJEIRA") || limpo.contains("JACOMO")) return "CEREJEIRAS";
-        if (limpo.contains("ARAUCARIA")) return "ARAUCARIAS";
-        if (limpo.contains("IPE")) return "IPES";
+        String resultado;
+        if (limpo.contains("MONTANARO")) resultado = "MONTANARO";
+        else if (limpo.contains("LEBLON")) resultado = "LEBLON";
+        else if (limpo.contains("IMBUIA")) resultado = "IMBUIAS";
+        else if (limpo.contains("BELA VISTA") || limpo.contains("BELAVISTA")) resultado = "BELA_VISTA";
+        else if (limpo.contains("SABIA")) resultado = "SABIAS";
+        else if (limpo.contains("ACACIA")) resultado = "ACACIAS";
+        else if (limpo.contains("ORQUIDEA")) resultado = "ORQUIDEAS";
+        else if (limpo.contains("CEDRO")) resultado = "CEDRO";
+        else if (limpo.contains("OLIVEIRA")) resultado = "OLIVEIRAS";
+        else if (limpo.contains("MACAUBA")) resultado = "MACAUBA";
+        else if (limpo.contains("CEREJEIRA") || limpo.contains("JACOMO")) resultado = "CEREJEIRAS";
+        else if (limpo.contains("ARAUCARIA")) resultado = "ARAUCARIAS";
+        else if (limpo.contains("IPE")) resultado = "IPES";
+        else resultado = PATTERN_NAO_ALFANUM.matcher(limpo).replaceAll("_");
 
-        return limpo.replaceAll("[^A-Z0-9]", "_");
+        if (CACHE_UNIDADE.size() < MAX_CACHE_SIZE) {
+            CACHE_UNIDADE.put(unidade, resultado);
+        }
+        return resultado;
     }
 
     public static String normalizarTexto(String texto) {
-        if (texto == null) return "";
-        return removerAcentos(texto.toLowerCase().trim())
-                .replaceAll("\\s+", " ")
-                .replaceAll("[.,;:!?]+$", "")
-                .trim();
+        if (texto == null || texto.isEmpty()) return "";
+        String cached = CACHE_TEXTO.get(texto);
+        if (cached != null) {
+            return cached;
+        }
+
+        String semAcento = removerAcentos(texto.toLowerCase().trim());
+        String semEspacosDuplos = PATTERN_ESPACOS.matcher(semAcento).replaceAll(" ");
+        String resultado = PATTERN_PONTUACAO_FINAL.matcher(semEspacosDuplos).replaceFirst("").trim();
+
+        if (CACHE_TEXTO.size() < MAX_CACHE_SIZE) {
+            CACHE_TEXTO.put(texto, resultado);
+        }
+        return resultado;
     }
 
     private static String removerAcentos(String str) {
-        return Normalizer.normalize(str, Normalizer.Form.NFD)
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
+        return PATTERN_DIACRITICOS.matcher(Normalizer.normalize(str, Normalizer.Form.NFD)).replaceAll("");
     }
 }
